@@ -1,19 +1,20 @@
 language: python
 sudo: false
 python:
- - '2.7'
+ - '3.3'
 cache:
   directories:
-    - ${VIRTUAL_ENV}
+    - ~/virtualenv
 install:
- - pip install -e .[test] --process-dependency-links
+ - wget public-travis-scripts.polysquare.org/python-install.sh
  - wget public-travis-scripts.polysquare.org/python-lint.sh
  - wget public-travis-scripts.polysquare.org/project-lint.sh
  - wget public-travis-scripts.polysquare.org/python-coverage.sh
  - wget public-travis-scripts.polysquare.org/python-tests.sh
+ - bash python-install.sh
 script:
  - bash python-lint.sh -m psqtraviscontainer
- - bash project-lint.sh -d . -e py
+ - bash project-lint.sh -d . -e py 
  - bash python-tests.sh -m psqtraviscontainer
 after_success:
  - bash python-coverage.sh

@@ -10,6 +10,10 @@ Status
 Caveats
 -------
 
-Polysquare Travis Container only runs on Python 2.7 right now, due to urlgrabber
-only working on Python 2.7. This shouldn't be too much of a problem as its
-designed to be used on projects where Python is not the main language.
+Polysquare Travis Container only runs on Python 3.3 right now, due to
+our fork of urlgrabber only working on Python 3.3. This shouldn't be too
+much of a problem as its designed to be used on projects where Python is
+not the main language.
+
+Consider using the setup-languages.sh script from polysquare-ci-scripts
+to enable python3.3 on a travis container.
