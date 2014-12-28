@@ -148,23 +148,19 @@ def _print_distribution_details(details, distro_arch):
                      "\n")
 
 
-def _fetch_distribution(container_root, details, distro_arch):
-    """Download distribution and untar it in container_root."""
+def _fetch_distribution(container_root,  # pylint:disable=R0913
+                        proot_distro,
+                        details,
+                        distro_arch,
+                        repositories_file,
+                        packages_file):
+    """Lazy-initialize distribution and return it."""
     path_to_distro_folder = distro.get_dir(container_root,
                                            details,
                                            distro_arch)
 
-    try:
-        os.stat(path_to_distro_folder)
-        sys.stdout.write(colored(u"\N{check mark} "
-                                 "Using pre-existing folder for distro "
-                                 "{0} {1} ({2})\n".format(details.type,
-                                                          details.release,
-                                                          distro_arch),
-                                 "green",
-                                 attrs=["bold"]))
-    except OSError:
-        # Download the distribution tarball in the distro dir
+    def _download_distro(details, path_to_distro_folder):
+        """Download distribution and untar it in container root."""
         download_url = details.url.format(arch=distro_arch)
         with TemporarilyDownloadedFile(download_url) as distro_archive_file:
             with directory.Navigation(path_to_distro_folder):
@@ -178,6 +174,44 @@ def _fetch_distribution(container_root, details, distro_arch):
                            "{0}\n").format(distro_archive_file.path())
                     sys.stdout.write(colored(msg, "magenta", attrs=["bold"]))
                     archive.extractall(members=extract_members)
+
+    def _install_packages(details, path_to_distro_folder):
+        """Install packages into the distribution."""
+        if packages_file:
+            proot_executor = use.PtraceRootExecutor(proot_distro,
+                                                    container_root,
+                                                    details,
+                                                    distro_arch)
+            package_system = details.pkgsys(path_to_distro_folder,
+                                            details,
+                                            distro_arch,
+                                            proot_executor)
+
+            # Add any repositories to the package system now
+            if repositories_file:
+                repo_lines = repositories_file[0].read().splitlines(False)
+                package_system.add_repositories(repo_lines)
+
+            packages = re.findall(r"\w+", packages_file[0].read())
+            package_system.install_packages(packages)
+
+    try:
+        os.stat(path_to_distro_folder)
+        sys.stdout.write(colored(u"\N{check mark} "
+                                 "Using pre-existing folder for distro "
+                                 "{0} {1} ({2})\n".format(details.type,
+                                                          details.release,
+                                                          distro_arch),
+                                 "green",
+                                 attrs=["bold"]))
+    except OSError:
+        # Download the distribution tarball in the distro dir
+        _download_distro(details, path_to_distro_folder)
+
+        # Now set up packages in the distribution. If more packages need
+        # to be installed or the installed packages need to be updated then
+        # the build cache should be cleared.
+        _install_packages(details, path_to_distro_folder)
 
     return path_to_distro_folder
 
@@ -223,30 +257,13 @@ def main(arguments=None):
                                             result.release[0],
                                             result.arch[0])
 
-        _print_distribution_details(distro_config, arch)
-        distro_folder = _fetch_distribution(result.containerdir[0],
-                                            distro_config,
-                                            arch)
-
-        # Create a package system for the distribution if packages are to
-        # be installed. This will require a proot executor.
-        if result.packages:
-            proot_executor = use.PtraceRootExecutor(proot_distro,
-                                                    result.containerdir[0],
-                                                    distro_config,
-                                                    arch)
-            package_system = distro_config.pkgsys(distro_folder,
-                                                  distro_config,
-                                                  arch,
-                                                  proot_executor)
-
-            # Add any repositories to the package system now
-            if result.repositories:
-                repo_lines = result.repositories[0].read().splitlines(False)
-                package_system.add_repositories(repo_lines)
-
-            packages = re.findall(r"\w+", result.packages[0].read())
-            package_system.install_packages(packages)
+        _print_distribution_details(distro_config, architecture)
+        _fetch_distribution(result.containerdir[0],
+                            proot_distro,
+                            distro_config,
+                            arch,
+                            result.repositories,
+                            result.packages)
 
     sys.stdout.write(colored(u"\N{check mark} "
                              "Container has been set up "
