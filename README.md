@@ -7,6 +7,10 @@ Travis-CI container based infrastructure.
 Status
 ------
 
+| Travis CI (Ubuntu) | Coverage |
+|--------------------|----------|
+|[![Travis](https://travis-ci.org/polysquare/polysquare-travis-container.svg?branch=master)](https://travis-ci.org/polysquare/polysquare-travis-container)|[![Coverage](https://coveralls.io/repos/polysquare/polysquare-travis-container/badge.png?branch=master)](https://coveralls.io/r/polysquare/polysquare-travis-container?branch=master)|
+
 Caveats
 -------
 
