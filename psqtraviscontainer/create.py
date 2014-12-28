@@ -12,194 +12,40 @@ in order to create the jail. Commands running in the proot will have filesystem
 requests redirected to the proot and believe that they are running as uid 0
 """
 
-import argparse
-
-import errno
-
 import os
 
 import platform
 
+import re
+
 import shutil
+
+import stat
 
 import sys
 
-from collections import namedtuple
+import tarfile
 
-from pyunpack import Archive
+from contextlib import closing
+
+import configargparse
+
+from debian import arfile
+
+from psqtraviscontainer import architecture
+from psqtraviscontainer import common_options
+from psqtraviscontainer import constants
+from psqtraviscontainer import directory
+from psqtraviscontainer import distro
+from psqtraviscontainer import use
+
+from psqtraviscontainer.download import TemporarilyDownloadedFile
+from psqtraviscontainer.download import download_file
 
 from termcolor import colored
 
-from urlgrabber.grabber import URLGrabError
-from urlgrabber.grabber import URLGrabber
-
-from urlgrabber.progress import TextMeter
-
-
-DistroConfig = namedtuple("DistroConfig", "name url archs pkgsys archfetch")
-ProotDistribution = namedtuple("ProotDistribution", "proot qemu")
-
-
-_HAVE_PROOT_DISTRIBUTION_NAME = ".have-proot-distribution"
-_PROOT_DISTRIBUTION_DIR = "_proot"
 _PROOT_URL_BASE = "http://static.proot.me/proot-{arch}"
 _QEMU_URL_BASE = "http://download.opensuse.org/repositories/home:/cedric-vincent/xUbuntu_12.04/{arch}/qemu-user-mode_1.6.1-1_{arch}.deb"  # NOQA # pylint:disable=line-too-long
-
-
-class _DirectoryNavigation(object):
-
-    """ContextManager based class to enter and exit directories."""
-
-    def __init__(self, path):
-        """Initialize the path we want to change to."""
-        super(_DirectoryNavigation, self).__init__()
-        self._path = path
-        self._current_dir = None
-
-    def __enter__(self):
-        """Upon entry, attempt to create the directory and then enter it."""
-        try:
-            os.makedirs(self._path)
-        except OSError, err:
-            if err.errno != errno.EEXIST:
-                raise err
-
-        self._current_dir = os.getcwd()
-        os.chdir(self._path)
-
-        return self._path
-
-    def __exit__(self, exc_type, value, traceback):
-        """Pop directory on exiting with statement."""
-        del exc_type
-        del traceback
-        del value
-
-        os.chdir(self._current_dir)
-
-
-_ArchitectureType = namedtuple("_ArchitectureType",
-                               "aliases debian universal qemu")
-
-_X86_ARCHITECTURE = _ArchitectureType(aliases=["i386",
-                                               "i486",
-                                               "i586",
-                                               "i686",
-                                               "x86"],
-                                      debian="i386",
-                                      universal="x86",
-                                      qemu="i386")
-_X86_64_ARCHITECTURE = _ArchitectureType(aliases=["x86_64", "amd64"],
-                                         debian="amd64",
-                                         universal="x86_64",
-                                         qemu="x86_64")
-_ARM_HARD_FLOAT_ARCHITECTURE = _ArchitectureType(aliases=["arm",
-                                                          "armel",
-                                                          "armhf"],
-                                                 debian="amd64",
-                                                 universal="x86_64",
-                                                 qemu="x86_64")
-
-
-class _ArchitectureAliasMetaclass(type):
-
-    """A metaclass which provides an operator to convert arch strings."""
-
-    @classmethod
-    def __getitem__(cls,  # pylint:disable=bad-mcs-classmethod-argument
-                    lookup):
-        """Operator overload for [].
-
-        If a special architecture for different platforms is not found, return
-        a generic one which just has this architecture name
-        """
-        del cls
-
-        overloaded_architectures = [_X86_ARCHITECTURE,
-                                    _X86_64_ARCHITECTURE,
-                                    _ARM_HARD_FLOAT_ARCHITECTURE]
-        for arch in overloaded_architectures:
-            if lookup in arch.aliases:
-                return arch
-
-        return _ArchitectureType(aliases=[lookup],
-                                 debian=lookup,
-                                 universal=lookup,
-                                 qemu=lookup)
-
-
-class _ArchitectureAlias(object):
-
-    """Implementation of _ArchitectureAliasMetaclass.
-
-    Provides convenience methods to convert architecture strings
-    between platforms.
-    """
-
-    __metaclass__ = _ArchitectureAliasMetaclass
-
-    @classmethod
-    def debian(cls, lookup):
-        """Convert to debian."""
-        return cls[lookup].debian
-
-    @classmethod
-    def qemu(cls, lookup):
-        """Convert to qemu."""
-        return cls[lookup].qemu
-
-    @classmethod
-    def universal(cls, lookup):
-        """Convert to universal."""
-        return cls[lookup].universal
-
-
-def _download_file(url, filename):
-    """Download the file at url and store it at filename."""
-    try:
-
-        sys.stdout.write(colored("Downloading {0} to {1}".format(url,
-                                                                 filename),
-                                 "blue",
-                                 attrs=["bold"]))
-        grabber = URLGrabber(timeout=10,
-                             progress_obj=TextMeter(fo=sys.stdout))
-        grabber.urlgrab(url, filename=filename)
-
-    except URLGrabError, exc:
-        sys.stdout.write(str(exc))
-
-
-class _TemporarilyDownloadedFile(object):\
-
-    """An enter/exit class representing a temporarily downloaded file.
-
-    The file will be downloaded on enter and erased once the scope has
-    been exited.
-    """
-
-    def __init__(self, url, filename):
-        """Initialize the url and path to download file to."""
-        super(_TemporarilyDownloadedFile, self).__init__()
-        self._url = url
-        self._path = os.path.join(os.getcwd(), filename)
-
-    def __enter__(self):
-        """Run file download."""
-        _download_file(self._url, self._path)
-        return self
-
-    def __exit__(self, exc_type, value, traceback):
-        """Remove the temporarily downloaded file."""
-        del exc_type
-        del traceback
-        del value
-
-        os.remove(self._path)
-
-    def path(self):
-        """Get temporarily downloaded file path."""
-        return self._path
 
 
 def _fetch_proot_distribution(container_root):
@@ -207,156 +53,157 @@ def _fetch_proot_distribution(container_root):
 
     Touches .have-proot-distribution when complete
     """
-    path_to_proot_distro_check = os.path.join(container_root,
-                                              _HAVE_PROOT_DISTRIBUTION_NAME)
+    path_to_proot_check = os.path.join(container_root,
+                                       constants.HAVE_PROOT_DISTRIBUTION)
     path_to_proot_dir = os.path.join(container_root,
-                                     _PROOT_DISTRIBUTION_DIR)
+                                     constants.PROOT_DISTRIBUTION_DIR)
+
+    def _download_proot(distribution_dir, arch):
+        """Download arch build of proot into distribution."""
+        with directory.Navigation(os.path.join(distribution_dir,
+                                               "bin")):
+            proot_url = _PROOT_URL_BASE.format(arch=arch)
+            path_to_proot = download_file(proot_url, "proot")
+            os.chmod(path_to_proot,
+                     os.stat(path_to_proot).st_mode | stat.S_IXUSR)
+            return path_to_proot
+
+    def _download_qemu(distribution_dir, arch):
+        """Download arch build of qemu and extract binaries."""
+        qemu_url = _QEMU_URL_BASE.format(arch=arch)
+
+        with TemporarilyDownloadedFile(qemu_url,
+                                       filename="qemu.deb") as qemu_deb:
+            # Go into a separate subdirectory and extract the qemu deb
+            # there, then copy out the requisite files, so that we don't
+            # cause tons of pollution
+            qemu_tmp = os.path.join(path_to_proot_dir, "_qemu_tmp")
+            with directory.Navigation(qemu_tmp):
+                sys.stdout.write(colored(("-> Extracting "
+                                          "{0}\n").format(qemu_deb.path()),
+                                         "magenta",
+                                         attrs=["bold"]))
+                archive = arfile.ArFile(qemu_deb.path())
+                with closing(archive.getmember("data.tar.gz")) as member:
+                    with tarfile.open(fileobj=member) as data_tar:
+                        data_tar.extractall(qemu_tmp)
+
+                qemu_binaries_path = os.path.join(qemu_tmp, "usr/bin")
+                for filename in os.listdir(qemu_binaries_path):
+                    shutil.copy(os.path.join(qemu_binaries_path, filename),
+                                os.path.join(path_to_proot_dir, "bin"))
+
+            shutil.rmtree(qemu_tmp)
+            return os.path.join(distribution_dir, "bin", "qemu-{arch}")
 
     try:
-        os.stat(path_to_proot_distro_check)
-        sys.stdout.write(colored("Using pre-existing proot distribution",
+        os.stat(path_to_proot_check)
+        sys.stdout.write(colored(u"\N{check mark} "
+                                 "Using pre-existing proot distribution\n",
                                  "green",
                                  attrs=["bold"]))
+
     except OSError:
 
         sys.stdout.write(colored(("Creating distribution of proot "
-                                  "in {0}").format(container_root),
+                                  "in {0}\n").format(container_root),
                                  "yellow",
                                  attrs=["bold"]))
 
         # Distro check does not exist - create the _proot directory
         # and download files for this architecture
-        with _DirectoryNavigation(path_to_proot_dir):
-            proot_arch = _ArchitectureAlias.universal(platform.machine())
-            qemu_arch = _ArchitectureAlias.debian(platform.machine())
+        with directory.Navigation(path_to_proot_dir):
+            proot_arch = architecture.Alias.universal(platform.machine())
+            qemu_arch = architecture.Alias.debian(platform.machine())
+            _download_proot(path_to_proot_dir, proot_arch)
+            _download_qemu(path_to_proot_dir, qemu_arch)
 
-            with _DirectoryNavigation(os.path.join(path_to_proot_dir,
-                                                   "bin")):
-                proot_url = _PROOT_URL_BASE.format(arch=proot_arch)
-                _download_file(proot_url, "proot")
-
-            qemu_url = _QEMU_URL_BASE.format(arch=qemu_arch)
-
-            with _TemporarilyDownloadedFile(qemu_url,
-                                            filename="qemu.deb") as qemu_deb:
-
-                # Go into a separate subdirectory and extract the qemu deb
-                # there, then copy out the requisite files, so that we don't
-                # cause tons of pollution
-                qemu_tmp = os.path.join(path_to_proot_dir, "_qemu_tmp")
-                with _DirectoryNavigation(qemu_tmp):
-                    sys.stdout.write(colored(("Extracting "
-                                              "{0}").format(qemu_deb.path()),
-                                             "magenta",
-                                             attrs=["bold"]))
-                    archive = Archive(qemu_deb.path())
-                    archive.extractall(qemu_tmp)
-
-                    qemu_binaries_path = os.path.join(qemu_tmp, "usr/bin")
-                    for filename in os.listdir(qemu_binaries_path):
-                        shutil.copy(os.path.join(qemu_binaries_path, filename),
-                                    os.path.join(path_to_proot_dir, "bin"))
-
-                shutil.rmtree(qemu_tmp)
-
-        with open(path_to_proot_distro_check, "w+") as check_file:
+        with open(path_to_proot_check, "w+") as check_file:
             check_file.write("done")
 
-        sys.stdout.write(colored(("Successfully installed proot distribution"
-                                  " to {0}").format(container_root),
+        sys.stdout.write(colored(u"\N{check mark} "
+                                 "Successfully installed proot distribution"
+                                 " to {0}\n".format(container_root),
                                  "green",
                                  attrs=["bold"]))
 
-    def _get_qemu_binary(arch):
-        """Get the qemu binary for architecture."""
-        path_to_qemu = os.path.join(path_to_proot_dir, "bin/qemu-{arch}")
-        return path_to_qemu.format(_ArchitectureAlias.qemu(arch))
-
-    def _get_proot_binary():
-        """Get the proot binary."""
-        return os.path.join(path_to_proot_dir, "bin/proot")
-
-    return ProotDistribution(proot=_get_proot_binary,
-                             qemu=_get_qemu_binary)
+    return use.proot_distro_from_container(container_root)
 
 
-class DpkgPackageSystem(object):
-
-    """Debian Packaging System."""
-
-    pass
-
-AVAILABLE_DISTRIBUTIONS = [
-    DistroConfig(name="ubuntu-precise",
-                 url="http://cdimage.ubuntu.com/ubuntu-core/releases/precise/release/ubuntu-core-12.04.5-core-{arch}.tar.gz",  # NOQA # pylint:disable=line-too-long
-                 archs=["i386", "amd64", "armhf"],
-                 pkgsys=DpkgPackageSystem,
-                 archfetch=_ArchitectureAlias.debian),
-    DistroConfig(name="ubuntu-trusty",
-                 url="http://cdimage.ubuntu.com/ubuntu-core/releases/precise/release/ubuntu-core-14.04.1-core-{arch}.tar.gz",  # NOQA # pylint:disable=line-too-long
-                 archs=["i386",
-                        "amd64",
-                        "armhf",
-                        "arm64",
-                        "powerpc",
-                        "ppc64el"],
-                 pkgsys=DpkgPackageSystem,
-                 archfetch=_ArchitectureAlias.debian)
-]
-
-
-def _parse_arguments(arguments=None):
-    """Return a parser context result."""
-    # Iterate over the AVAILABLE_DISTRIBUTIONS and get a list of available
-    # distributions and architecutres for the --distro and --arch arguments
-    available_architectures = set()
-    available_distributions = set()
-
-    for distro in AVAILABLE_DISTRIBUTIONS:
-        available_distributions.add(distro.name)
-
-        for arch in distro.archs:
-            available_architectures.add(_ArchitectureAlias.universal(arch))
-
-    parser = argparse.ArgumentParser(description="Create a Travis container")
-
-    parser.add_argument("containerdir",
-                        nargs=1,
-                        metavar=("CONTAINER_DIRECTORY"),
-                        help="Directory to place container in",
-                        type=str)
-    parser.add_argument("--distro",
-                        nargs=1,
-                        type=str,
-                        help="Distribution name to create container of",
-                        default=None,
-                        choices=available_distributions)
-    parser.add_argument("--arch",
-                        nargs=1,
-                        type=str,
-                        help=("Architecture (all architectures other than "
-                              "the system architecture will be emulated with "
-                              "qemu)"),
-                        default=platform.machine(),
-                        choices=available_architectures)
-
-    return parser.parse_args(arguments)
-
-
-def _print_distribution_details(details, selected_arch):
+def _print_distribution_details(details, distro_arch):
     """Print distribution details."""
-    distro_arch = details.archfetch(selected_arch)
     pkgsysname = details.pkgsys.__name__
 
     sys.stdout.write(colored("\nConfigured Distribution:\n",
                              "white",
                              attrs=["underline"]) +
-                     " - Distribution Name: {0}\n".format(colored(details.name,
+                     " - Distribution Name: {0}\n".format(colored(details.type,
                                                                   "yellow")) +
+                     " - Release: {0}\n".format(colored(details.release,
+                                                        "yellow")) +
                      " - Architecture: {0}\n".format(colored(distro_arch,
                                                              "yellow")) +
                      " - Package System: {0}\n".format(colored(pkgsysname,
-                                                               "yellow")))
+                                                               "yellow")) +
+                     "\n")
+
+
+def _fetch_distribution(container_root, details, distro_arch):
+    """Download distribution and untar it in container_root."""
+    path_to_distro_folder = distro.get_dir(container_root,
+                                           details,
+                                           distro_arch)
+
+    try:
+        os.stat(path_to_distro_folder)
+        sys.stdout.write(colored(u"\N{check mark} "
+                                 "Using pre-existing folder for distro "
+                                 "{0} {1} ({2})\n".format(details.type,
+                                                          details.release,
+                                                          distro_arch),
+                                 "green",
+                                 attrs=["bold"]))
+    except OSError:
+        # Download the distribution tarball in the distro dir
+        download_url = details.url.format(arch=distro_arch)
+        with TemporarilyDownloadedFile(download_url) as distro_archive_file:
+            with directory.Navigation(path_to_distro_folder):
+                with tarfile.open(distro_archive_file.path(),
+                                  "r|*") as archive:
+                    extract_members = [m for m in archive.getmembers()
+                                       if not m.isdev()]
+                with tarfile.open(distro_archive_file.path(),
+                                  "r|*") as archive:
+                    msg = ("-> Extracting "
+                           "{0}\n").format(distro_archive_file.path())
+                    sys.stdout.write(colored(msg, "magenta", attrs=["bold"]))
+                    archive.extractall(members=extract_members)
+
+    return path_to_distro_folder
+
+
+def _parse_arguments(arguments=None):
+    """Return a parser context result."""
+    parser = common_options.get_parser("Create")
+    parser.add_argument("--repositories",
+                        nargs=1,
+                        type=configargparse.FileType("r"),
+                        help="A file containing a list of repositories to add "
+                             "before installing packages. Special keywords "
+                             "will control the operation of this file: \n"
+                             "{release}: The distribution release (eg, "
+                             "precise)\n"
+                             "{ubuntu}: Ubuntu archive URL\n"
+                             "{launchpad}: Launchpad PPA URL header (eg,"
+                             "ppa.launchpad.net)\n",
+                        default=None)
+    parser.add_argument("--packages",
+                        nargs=1,
+                        type=configargparse.FileType("r"),
+                        help="A file containing a list of packages to install",
+                        default=None)
+
+    return parser.parse_args(arguments)
 
 
 def main(arguments=None):
@@ -368,17 +215,42 @@ def main(arguments=None):
     result = _parse_arguments(arguments=arguments)
 
     # First fetch a proot distribution if we don't already have one
-    _fetch_proot_distribution(result.containerdir[0])
+    proot_distro = _fetch_proot_distribution(result.containerdir[0])
 
     # Now fetch the distribution tarball itself, if we specified one
     if result.distro:
-        available = AVAILABLE_DISTRIBUTIONS
-        details = [d for d in available if d.name == result.distro[0]]
+        distro_config, arch = distro.lookup(result.distro[0],
+                                            result.release[0],
+                                            result.arch[0])
 
-        _print_distribution_details(details[0], result.arch)
+        _print_distribution_details(distro_config, arch)
+        distro_folder = _fetch_distribution(result.containerdir[0],
+                                            distro_config,
+                                            arch)
 
-    sys.stdout.write(colored("Container has been set up "
-                             "in {0}".format(result.containerdir[0]),
+        # Create a package system for the distribution if packages are to
+        # be installed. This will require a proot executor.
+        if result.packages:
+            proot_executor = use.PtraceRootExecutor(proot_distro,
+                                                    result.containerdir[0],
+                                                    distro_config,
+                                                    arch)
+            package_system = distro_config.pkgsys(distro_folder,
+                                                  distro_config,
+                                                  arch,
+                                                  proot_executor)
+
+            # Add any repositories to the package system now
+            if result.repositories:
+                repo_lines = result.repositories[0].read().splitlines(False)
+                package_system.add_repositories(repo_lines)
+
+            packages = re.findall(r"\w+", result.packages[0].read())
+            package_system.install_packages(packages)
+
+    sys.stdout.write(colored(u"\N{check mark} "
+                             "Container has been set up "
+                             "in {0}\n".format(result.containerdir[0]),
                              "green",
                              attrs=["bold"]))
 
