@@ -10,7 +10,7 @@ import errno
 import os
 
 
-class Navigation(object):
+class Navigation(object):  # pylint:disable=R0903
 
     """ContextManager based class to enter and exit directories."""
 

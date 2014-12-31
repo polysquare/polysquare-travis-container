@@ -48,15 +48,21 @@ _PROOT_URL_BASE = "http://static.proot.me/proot-{arch}"
 _QEMU_URL_BASE = "http://download.opensuse.org/repositories/home:/cedric-vincent/xUbuntu_12.04/{arch}/qemu-user-mode_1.6.1-1_{arch}.deb"  # NOQA # pylint:disable=line-too-long
 
 
+def _extract_deb_data(archive, tmp_dir):
+    """Extract archive to tmp_dir."""
+    with closing(archive.getmember("data.tar.gz")) as member:
+        with tarfile.open(fileobj=member,
+                          mode="r|*") as data_tar:
+            data_tar.extractall(path=tmp_dir)
+
+
 def _fetch_proot_distribution(container_root):
     """Fetch the initial proot distribution if it is not available.
 
     Touches .have-proot-distribution when complete
     """
-    path_to_proot_check = os.path.join(container_root,
-                                       constants.HAVE_PROOT_DISTRIBUTION)
-    path_to_proot_dir = os.path.join(container_root,
-                                     constants.PROOT_DISTRIBUTION_DIR)
+    path_to_proot_check = constants.have_proot_distribution(container_root)
+    path_to_proot_dir = constants.proot_distribution_dir(container_root)
 
     def _download_proot(distribution_dir, arch):
         """Download arch build of proot into distribution."""
@@ -84,9 +90,7 @@ def _fetch_proot_distribution(container_root):
                                          "magenta",
                                          attrs=["bold"]))
                 archive = arfile.ArFile(qemu_deb.path())
-                with closing(archive.getmember("data.tar.gz")) as member:
-                    with tarfile.open(fileobj=member) as data_tar:
-                        data_tar.extractall(qemu_tmp)
+                _extract_deb_data(archive, qemu_tmp)
 
                 qemu_binaries_path = os.path.join(qemu_tmp, "usr/bin")
                 for filename in os.listdir(qemu_binaries_path):
@@ -148,6 +152,17 @@ def _print_distribution_details(details, distro_arch):
                      "\n")
 
 
+def _extract_distro_archive(distro_archive_file, distro_folder):
+    """Extract distribution archive into distro_folder."""
+    with tarfile.open(name=distro_archive_file.path()) as archive:
+        msg = ("-> Extracting "
+               "{0}\n").format(distro_archive_file.path())
+        extract_members = [m for m in archive.getmembers()
+                           if not m.isdev()]
+        sys.stdout.write(colored(msg, "magenta", attrs=["bold"]))
+        archive.extractall(members=extract_members, path=distro_folder)
+
+
 def _fetch_distribution(container_root,  # pylint:disable=R0913
                         proot_distro,
                         details,
@@ -163,27 +178,17 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
         """Download distribution and untar it in container root."""
         download_url = details.url.format(arch=distro_arch)
         with TemporarilyDownloadedFile(download_url) as distro_archive_file:
-            with directory.Navigation(path_to_distro_folder):
-                with tarfile.open(distro_archive_file.path(),
-                                  "r|*") as archive:
-                    extract_members = [m for m in archive.getmembers()
-                                       if not m.isdev()]
-                with tarfile.open(distro_archive_file.path(),
-                                  "r|*") as archive:
-                    msg = ("-> Extracting "
-                           "{0}\n").format(distro_archive_file.path())
-                    sys.stdout.write(colored(msg, "magenta", attrs=["bold"]))
-                    archive.extractall(members=extract_members)
+            _extract_distro_archive(distro_archive_file,
+                                    path_to_distro_folder)
 
-    def _install_packages(details, path_to_distro_folder):
+    def _install_packages(details):
         """Install packages into the distribution."""
         if packages_file:
             proot_executor = use.PtraceRootExecutor(proot_distro,
                                                     container_root,
                                                     details,
                                                     distro_arch)
-            package_system = details.pkgsys(path_to_distro_folder,
-                                            details,
+            package_system = details.pkgsys(details,
                                             distro_arch,
                                             proot_executor)
 
@@ -211,7 +216,7 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
         # Now set up packages in the distribution. If more packages need
         # to be installed or the installed packages need to be updated then
         # the build cache should be cleared.
-        _install_packages(details, path_to_distro_folder)
+        _install_packages(details)
 
     return path_to_distro_folder
 

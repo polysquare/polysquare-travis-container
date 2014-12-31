@@ -8,11 +8,9 @@
 from setuptools import find_packages, setup
 
 setup(name="psqtraviscontainer",
-      version="0.0.1",
+      version="0.0.2",
       description="Polysquare Travis-CI APT Container Root",
-      long_description=("Creates a container that can be used to install"
-                        " packages without root priviledges. Useful for"
-                        " container mode in Travis-CI"),
+      long_description_markdown_filename="README.md",
       author="Sam Spilsbury",
       author_email="smspillaz@gmail.com",
       classifiers=["Development Status :: 3 - Alpha",

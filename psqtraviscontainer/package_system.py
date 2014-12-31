@@ -5,8 +5,6 @@
 # See LICENCE.md for Copyright information
 """Implementations of package-system controllers for various distributions."""
 
-import os
-
 _UBUNTU_MAIN_ARCHS = ["i386", "amd64"]
 _UBUNTU_PORT_ARCHS = ["armhf", "arm64", "powerpc", "ppc64el"]
 _UBUNTU_MAIN_ARCHIVE = "http://archive.ubuntu.com/ubuntu/"
@@ -14,8 +12,14 @@ _UBUNTU_PORT_ARCHIVE = "http://ports.ubuntu.com/ubuntu-ports/"
 
 import sys
 
+import tempfile
+
 from psqtraviscontainer import directory
 from psqtraviscontainer import download
+
+import six
+
+import tempdir
 
 from termcolor import colored
 
@@ -25,13 +29,11 @@ class Dpkg(object):
     """Debian Packaging System."""
 
     def __init__(self,
-                 distro_dir,
                  config,
                  arch,
                  executor):
         """Initialize DpkgPackageSystem with DistroConfig."""
         super(Dpkg, self).__init__()
-        self._distro_root = distro_dir
         self._config = config
         self._arch = arch
         self._executor = executor
@@ -50,31 +52,35 @@ class Dpkg(object):
         def _format_user_line(line, kwargs):
             """Format a line and turns it into a valid repo line."""
             formatted_line = line.format(**kwargs)  # pylint:disable=W0142
-            return "deb {0}\n".format(formatted_line)
+            return "deb {0}".format(formatted_line)
 
         def _value_or_error(value):
             """Return first item in value, or ERROR if value is empty."""
             return value[0] if len(value) else "ERROR"
 
-        # Find /etc/apt/sources.list and add the line there
-        with open(os.path.join(self._distro_root, "etc/apt/sources.list"),
-                  "a+") as sources:
-            format_keys = {
-                "ubuntu": _ubuntu_url,
-                "debian": _debian_url,
-                "launchpad": _launchpad_url,
-                "release": [self._config.release]
-            }
-            format_keys = {
-                k: _value_or_error(v) for k, v in format_keys.items()
-            }
+        format_keys = {
+            "ubuntu": _ubuntu_url,
+            "debian": _debian_url,
+            "launchpad": _launchpad_url,
+            "release": [self._config.release]
+        }
+        format_keys = {
+            k: _value_or_error(v) for k, v in format_keys.items()
+        }
 
-            sources_lines = sources.readlines()
+        # We will be creating a bash script each time we need to add
+        # a new source line to our sources list and executing that inside
+        # the proot. This guaruntees that we'll always get the right
+        # permissions.
+        with tempfile.NamedTemporaryFile() as bash_script:
             append_lines = [_format_user_line(l, format_keys) for l in repos]
-
             for append_line in append_lines:
-                if append_line not in sources_lines:
-                    sources.write(append_line)
+                append_cmd = ("echo \"{0}\" >>"
+                              " /etc/apt/sources.list").format(append_line)
+                bash_script.write(six.b(append_cmd))
+
+            bash_script.flush()
+            self._executor.execute_success(["bash", bash_script.name])
 
     def run_task(self, description, argv):
         """Run command argv and prints description."""
@@ -94,13 +100,11 @@ class Yum(object):
     """RedHat Packaging System."""
 
     def __init__(self,
-                 distro_dir,
                  config,
                  arch,
                  executor):
         """Initialize DpkgPackageSystem with DistroConfig."""
         super(Yum, self).__init__()
-        self._distro_root = distro_dir
         self._config = config
         self._executor = executor
 
@@ -108,10 +112,19 @@ class Yum(object):
 
     def add_repositories(self, repos):
         """Add a repository to the central packaging system."""
-        with directory.Navigation(os.path.join(self._distro_root,
-                                               "etc/yum/repos.d")):
-            for repo in repos:
-                download.download_file(repo)
+        with tempdir.TempDir() as download_dir:
+            with directory.Navigation(download_dir):
+                for repo in repos:
+                    repo_file = download.download_file(repo)
+                    # Create a bash script to copy the downloaded repo file
+                    # over to /etc/yum/repos.d
+                    with tempfile.NamedTemporaryFile() as bash_script:
+                        copy_cmd = ("cp \"{0}\""
+                                    "/etc/yum/repos.d").format(repo_file)
+                        bash_script.write(six.b(copy_cmd))
+                        bash_script.flush()
+                        self._executor.execute_success(["bash",
+                                                        bash_script.name])
 
     def run_task(self, description, argv):
         """Run command argv and prints description."""
