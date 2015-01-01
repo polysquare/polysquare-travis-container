@@ -1,23 +1,15 @@
 language: python
 sudo: false
-python:
- - '2.7'
- - '3.3'
 cache:
   directories:
-    - ~/virtualenv
+  - ~/virtualenv
+python:
+- '2.7'
+- '3.3'
 install:
- - wget public-travis-scripts.polysquare.org/python-install.sh
- - wget public-travis-scripts.polysquare.org/python-lint.sh
- - wget public-travis-scripts.polysquare.org/project-lint.sh
- - wget public-travis-scripts.polysquare.org/python-coverage.sh
- - wget public-travis-scripts.polysquare.org/python-tests.sh
- - wget public-travis-scripts.polysquare.org/setup-lang.sh
- - source setup-lang.sh -l haskell -p ~/virtualenv/haskell
- - bash python-install.sh -p
+- curl -L public-travis-scripts.polysquare.org/python-setup-with-doc.sh | bash
 script:
- - bash python-lint.sh -m psqtraviscontainer
- - bash project-lint.sh -d . -e py 
- - bash python-tests.sh -m psqtraviscontainer
+- export MODULE=psqtraviscontainer
+- curl -L public-travis-scripts.polysquare.org/python-test-module.sh | bash
 after_success:
- - bash python-coverage.sh
+- curl -L public-travis-scripts.polysquare.org/python-coverage.sh | bash

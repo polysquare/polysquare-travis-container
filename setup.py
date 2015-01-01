@@ -52,4 +52,5 @@ setup(name="psqtraviscontainer",
           ]
       },
       test_suite="nose.collector",
-      zip_safe=True)
+      zip_safe=True,
+      include_package_data=True)
