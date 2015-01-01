@@ -12,7 +12,9 @@ install:
  - wget public-travis-scripts.polysquare.org/project-lint.sh
  - wget public-travis-scripts.polysquare.org/python-coverage.sh
  - wget public-travis-scripts.polysquare.org/python-tests.sh
- - bash python-install.sh
+ - wget public-travis-scripts.polysquare.org/setup-lang.sh
+ - source setup-lang.sh -l haskell -p ~/virtualenv/haskell
+ - bash python-install.sh -p
 script:
  - bash python-lint.sh -m psqtraviscontainer
  - bash project-lint.sh -d . -e py 
