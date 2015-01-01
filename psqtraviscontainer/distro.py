@@ -42,7 +42,7 @@ AVAILABLE_DISTRIBUTIONS = [
                  archfetch=architecture.Alias.universal),
     DistroConfig(type="Fedora",
                  release="20",
-                 url="http://download.openvz.org/template/precreated/contrib/fedora-20-{arch}-minimal-20141113.tar.xz",  # NOQA # pylint:disable=line-too-long
+                 url="http://download.openvz.org/template/precreated/fedora-20-{arch}.tar.gz",  # NOQA # pylint:disable=line-too-long
                  archs=["x86", "x86_64"],
                  pkgsys=package_system.Yum,
                  archfetch=architecture.Alias.universal)

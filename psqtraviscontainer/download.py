@@ -29,7 +29,7 @@ def download_file(url, filename=None):
     return os.path.join(os.getcwd(), grabbed_filename)
 
 
-class TemporarilyDownloadedFile(object):
+class TemporarilyDownloadedFile(object):  # pylint:disable=R0903
 
     """An enter/exit class representing a temporarily downloaded file.
 

@@ -43,7 +43,7 @@ class TestDirectoryNavigation(TestCase):
             self.assertThat(entered, DirExists())
 
 
-class TestArchitecture(TestCase):
+class TestArchitecture(TestCase):  # pylint:disable=R0903
 
     """Tests for architecture.py."""
 
@@ -64,7 +64,7 @@ class TestArchitecture(TestCase):
                                                   "% did not return same")))
 
 
-class TestDistroLookup(TestCase):
+class TestDistroLookup(TestCase):  # pylint:disable=R0903
 
     """Tests for looking up the distro."""
 

@@ -31,8 +31,8 @@ from psqtraviscontainer import use
 
 from psqtraviscontainer.architecture import Alias
 
-from psqtraviscontainer.constants import HAVE_PROOT_DISTRIBUTION
-from psqtraviscontainer.constants import PROOT_DISTRIBUTION_DIR
+from psqtraviscontainer.constants import have_proot_distribution
+from psqtraviscontainer.constants import proot_distribution_dir
 
 from psqtraviscontainer.distro import AVAILABLE_DISTRIBUTIONS
 
@@ -63,25 +63,41 @@ def _convert_to_switch_args(kwargs):
     return arguments
 
 
-class SafeTempDir(tempdir.TempDir):
+class SafeTempDir(object):  # pylint:disable=R0903
 
     """A TempDir that dissolves on __exit__, ignoring PermissionError."""
 
     def __init__(self):
         """Forward initialization."""
         super(SafeTempDir, self).__init__()
+        self._temp_dir = tempdir.TempDir()
 
-    def __exit__(self, *errstuff):
-        """Overridden __exit__ function."""
-        del errstuff
+    def __enter__(self):
+        """Return internal tempdir."""
+        return self._temp_dir.__enter__()
 
+    def __exit__(self, exc_type, value, traceback):
+        """Call dissolve."""
+        del exc_type
+        del value
+        del traceback
+
+        self.dissolve()
+
+    def dissolve(self):
+        """Forward to TempDir dissolve function, ignore PermissionError."""
         try:
-            self.dissolve()
-        except IOError:  # pylint:disable=W0704
-            # IOError is fine. The directory will be deleted by the
-            # user's operating system a little later, there's not much we
+            self._temp_dir.dissolve()
+        except (IOError, OSError):  # pylint:disable=W0704
+            # IOError and OSError are fine. The directory will be deleted by
+            # the user's operating system a little later, there's not much we
             # can do about this.
             pass
+
+    @property
+    def name(self):
+        """Getter for 'name'."""
+        return self._temp_dir.name
 
 
 def run_create_container_on_dir(directory, *args, **kwargs):
@@ -122,8 +138,7 @@ class TestCreateProot(TestCase):
     def test_create_proot_distro(self):
         """Check that we create a proot distro."""
         with run_create_container() as container:
-            self.assertThat(os.path.join(container,
-                                         HAVE_PROOT_DISTRIBUTION),
+            self.assertThat(have_proot_distribution(container),
                             FileExists())
 
     def test_use_existing_proot_distro(self):
@@ -134,8 +149,7 @@ class TestCreateProot(TestCase):
         then no re-downloading took place.
         """
         with run_create_container() as container:
-            path_to_proot_stamp = os.path.join(container,
-                                               HAVE_PROOT_DISTRIBUTION)
+            path_to_proot_stamp = have_proot_distribution(container)
 
             first_timestamp = os.stat(path_to_proot_stamp).st_mtime
 
@@ -207,22 +221,19 @@ class TestProotDistribution(ContainerInspectionTestCase):
 
     def test_has_proot_dir(self):
         """Check that we have a proot directory in our distribution."""
-        self.assertThat(os.path.join(self.container_dir,
-                                     PROOT_DISTRIBUTION_DIR),
+        self.assertThat(proot_distribution_dir(self.container_dir),
                         DirExists())
 
     def test_has_proot_executable(self):
         """Check that we have a proot executable in our distribution."""
-        self.assertThat(os.path.join(self.container_dir,
-                                     PROOT_DISTRIBUTION_DIR,
-                                     "bin/proot"),
+        cont = proot_distribution_dir(self.container_dir)
+        self.assertThat(os.path.join(cont, "bin/proot"),
                         FileExists())
 
     def test_proot_binary_is_executable(self):
         """Check that that the proot binary is executable."""
-        proot_binary = os.path.join(self.container_dir,
-                                    PROOT_DISTRIBUTION_DIR,
-                                    "bin/proot")
+        cont = proot_distribution_dir(self.container_dir)
+        proot_binary = os.path.join(cont, "bin/proot")
         stat_result = os.stat(proot_binary)
         executable_mask = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
         self.assertTrue(stat_result.st_mode & executable_mask != 0)
@@ -230,17 +241,15 @@ class TestProotDistribution(ContainerInspectionTestCase):
     @parameterized.expand(QEMU_ARCHITECTURES)
     def test_has_qemu_executables(self, arch):
         """Check that we have a qemu executable {0}.""".format("qemu-" + arch)
-        self.assertThat(os.path.join(self.container_dir,
-                                     PROOT_DISTRIBUTION_DIR,
-                                     "bin/qemu-{0}".format(arch)),
+        cont = proot_distribution_dir(self.container_dir)
+        self.assertThat(os.path.join(cont, "bin/qemu-{0}".format(arch)),
                         FileExists())
 
     @parameterized.expand(QEMU_ARCHITECTURES)
     def test_qemu_binary_is_executable(self, arch):
         """Check that qemu binary {0} is executable.""".format("qemu-" + arch)
-        proot_binary = os.path.join(self.container_dir,
-                                    PROOT_DISTRIBUTION_DIR,
-                                    "bin/qemu-{0}".format(arch))
+        cont = proot_distribution_dir(self.container_dir)
+        proot_binary = os.path.join(cont, "bin/qemu-{0}".format(arch))
         stat_result = os.stat(proot_binary)
         executable_mask = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
         self.assertTrue(stat_result.st_mode & executable_mask != 0)
@@ -295,7 +304,7 @@ ARCHITECTURE_LIBDIR_MAPPINGS = {
 }
 
 
-class InstallationConfig(object):
+class InstallationConfig(object):  # pylint:disable=R0903
 
     """Manages configuration files."""
 

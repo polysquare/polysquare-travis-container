@@ -61,8 +61,7 @@ class PtraceRootExecutor(object):
 
 def proot_distro_from_container(container_dir):
     """Return a ProotDistribution from a container dir."""
-    path_to_proot_dir = os.path.join(container_dir,
-                                     constants.PROOT_DISTRIBUTION_DIR)
+    path_to_proot_dir = constants.proot_distribution_dir(container_dir)
     path_to_proot_bin = os.path.join(path_to_proot_dir, "bin/proot")
     path_to_qemu_template = os.path.join(path_to_proot_dir,
                                          "bin/qemu-{arch}")
@@ -91,6 +90,14 @@ def _parse_arguments(arguments=None):
     return parser.parse_args(arguments)
 
 
+def _check_if_exists(entity):
+    """Raise RuntimeError if entity does not exist."""
+    if not os.path.exists(entity):
+        raise RuntimeError("A required entity {0} does not exist\n"
+                           "Try running psq-travis-container-create "
+                           "first before using psq-travis-container-use.")
+
+
 def main(arguments=None):
     """Select a distro in the container root and runs a comamnd in it."""
     result = _parse_arguments(arguments=arguments)
@@ -98,16 +105,12 @@ def main(arguments=None):
                                         result.release[0],
                                         result.arch[0])
     required_entities = [
-        os.path.join(result.containerdir[0],
-                     constants.HAVE_PROOT_DISTRIBUTION),
+        constants.have_proot_distribution(result.containerdir[0]),
         distro.get_dir(result.containerdir[0], distro_config, arch)
     ]
 
     for entity in required_entities:
-        if not os.path.exists(entity):
-            raise RuntimeError("A required entity {0} does not exist\n"
-                               "Try running psq-travis-container-create "
-                               "first before using psq-travis-container-use.")
+        _check_if_exists(entity)
 
     # Now create an executor and run our command
     proot_distro = proot_distro_from_container(result.containerdir[0])
