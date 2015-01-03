@@ -42,6 +42,8 @@ from psqtraviscontainer import use
 from psqtraviscontainer.download import TemporarilyDownloadedFile
 from psqtraviscontainer.download import download_file
 
+import tempdir
+
 from termcolor import colored
 
 _PROOT_URL_BASE = "http://static.proot.me/proot-{arch}"
@@ -177,9 +179,11 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
     def _download_distro(details, path_to_distro_folder):
         """Download distribution and untar it in container root."""
         download_url = details.url.format(arch=distro_arch)
-        with TemporarilyDownloadedFile(download_url) as distro_archive_file:
-            _extract_distro_archive(distro_archive_file,
-                                    path_to_distro_folder)
+        with tempdir.TempDir() as download_dir:
+            with directory.Navigation(download_dir):
+                with TemporarilyDownloadedFile(download_url) as archive_file:
+                    _extract_distro_archive(archive_file,
+                                            path_to_distro_folder)
 
     def _install_packages(details):
         """Install packages into the distribution."""
@@ -262,7 +266,7 @@ def main(arguments=None):
                                             result.release[0],
                                             result.arch[0])
 
-        _print_distribution_details(distro_config, architecture)
+        _print_distribution_details(distro_config, arch)
         _fetch_distribution(result.containerdir[0],
                             proot_distro,
                             distro_config,
