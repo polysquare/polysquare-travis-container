@@ -35,6 +35,7 @@ setup(name="psqtraviscontainer",
                         "six",
                         "urlgrabber==3.10.1",
                         "colorama",
+                        "tempdir",
                         "termcolor"],
       extras_require={
           "test": ["coverage",
