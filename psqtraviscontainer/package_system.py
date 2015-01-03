@@ -90,9 +90,9 @@ class Dpkg(object):
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
         self.run_task("Update repositories",
-                      ["apt-get", "update", "-qq", "-y"])
+                      ["apt-get", "update", "-qq", "-y", "--force-yes"])
         self.run_task("Install {0}".format(str(package_names)),
-                      ["apt-get", "install", "-qq", "-y"] + package_names)
+                      ["apt-get", "install", "-qq", "-y", "--force-yes"] + package_names)
 
 
 class Yum(object):
