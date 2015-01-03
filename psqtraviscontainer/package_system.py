@@ -24,6 +24,12 @@ import tempdir
 from termcolor import colored
 
 
+def _run_task(executor, description, argv):
+    """Run command through executor argv and prints description."""
+    sys.stdout.write(colored("-> {0}\n".format(description), "white"))
+    executor.execute_success(argv)
+
+
 class Dpkg(object):
 
     """Debian Packaging System."""
@@ -82,17 +88,18 @@ class Dpkg(object):
             bash_script.flush()
             self._executor.execute_success(["bash", bash_script.name])
 
-    def run_task(self, description, argv):
-        """Run command argv and prints description."""
-        sys.stdout.write(colored("-> {0}\n".format(description), "white"))
-        self._executor.execute_success(argv)
-
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
-        self.run_task("Update repositories",
-                      ["apt-get", "update", "-qq", "-y", "--force-yes"])
-        self.run_task("Install {0}".format(str(package_names)),
-                      ["apt-get", "install", "-qq", "-y", "--force-yes"] + package_names)
+        _run_task(self._executor,
+                  "Update repositories",
+                  ["apt-get", "update", "-qq", "-y", "--force-yes"])
+        _run_task(self._executor,
+                  "Install {0}".format(str(package_names)),
+                  ["apt-get",
+                   "install",
+                   "-qq",
+                   "-y",
+                   "--force-yes"] + package_names)
 
 
 class Yum(object):
@@ -126,12 +133,8 @@ class Yum(object):
                         self._executor.execute_success(["bash",
                                                         bash_script.name])
 
-    def run_task(self, description, argv):
-        """Run command argv and prints description."""
-        sys.stdout.write(colored("-> {0}\n".format(description), "white"))
-        self._executor.execute_success(argv)
-
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
-        self.run_task("Install {0}".format(str(package_names)),
-                      ["yum", "install", "-y"] + package_names)
+        _run_task(self._executor,
+                  "Install {0}".format(str(package_names)),
+                  ["yum", "install", "-y"] + package_names)
