@@ -11,6 +11,8 @@ import platform
 
 import subprocess
 
+import sys
+
 from collections import namedtuple
 
 from psqtraviscontainer import architecture
@@ -50,13 +52,28 @@ class PtraceRootExecutor(object):
 
         return proot_command + user_argv
 
-    def execute(self, argv):
-        """Execute the command specified by argv, return exit status."""
-        return subprocess.call(self._execute_argv(argv))
+    def execute(self, argv, stdout=None, stderr=None):
+        """Execute the command specified by argv.
+
+        Return tuple of (exit status, stdout, stderr).
+        """
+        argv = self._execute_argv(argv)
+        executed_cmd = subprocess.Popen(argv, stdout=stdout, stderr=stderr)
+        stdout_data, stderr_data = executed_cmd.communicate()
+
+        return (executed_cmd.returncode, stdout_data, stderr_data)
 
     def execute_success(self, argv):
         """Execute the command specified by argv, throws on failure."""
-        subprocess.check_call(self._execute_argv(argv))
+        returncode, stdout_data, stderr_data = self.execute(argv,
+                                                            subprocess.PIPE,
+                                                            subprocess.PIPE)
+
+        if returncode != 0:
+            sys.stderr.write(stdout_data)
+            sys.stderr.write(stderr_data)
+            raise RuntimeError("{0} failed with {1}".format(" ".join(argv),
+                                                            returncode))
 
 
 def proot_distro_from_container(container_dir):
@@ -119,4 +136,4 @@ def main(arguments=None):
                                         distro_config,
                                         arch)
 
-    return proot_executor.execute(result.cmd)
+    return proot_executor.execute(result.cmd)[0]
