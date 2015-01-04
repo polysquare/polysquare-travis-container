@@ -11,5 +11,7 @@ install:
 script:
 - export MODULE=psqtraviscontainer
 - curl -L public-travis-scripts.polysquare.org/python-test-module.sh | bash
+- ls ~/.cabal
+- find ~/virtualenv -type f
 after_success:
 - curl -L public-travis-scripts.polysquare.org/python-coverage.sh | bash
