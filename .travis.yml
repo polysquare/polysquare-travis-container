@@ -7,9 +7,9 @@ python:
 - '2.7'
 - '3.3'
 install:
-- curl -L public-travis-scripts.polysquare.org/python-setup-with-doc.sh | bash
+- curl -LSs public-travis-scripts.polysquare.org/python-setup-with-doc.sh | bash
 script:
 - export MODULE=psqtraviscontainer
-- curl -L public-travis-scripts.polysquare.org/python-test-module.sh | bash
+- curl -LSs public-travis-scripts.polysquare.org/python-test-module.sh | bash
 after_success:
-- curl -L public-travis-scripts.polysquare.org/python-coverage.sh | bash
+- curl -LSs public-travis-scripts.polysquare.org/python-coverage.sh | bash
