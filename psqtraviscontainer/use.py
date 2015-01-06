@@ -58,7 +58,10 @@ class PtraceRootExecutor(object):
         Return tuple of (exit status, stdout, stderr).
         """
         argv = self._execute_argv(argv)
-        executed_cmd = subprocess.Popen(argv, stdout=stdout, stderr=stderr)
+        executed_cmd = subprocess.Popen(argv,
+                                        stdout=stdout,
+                                        stderr=stderr,
+                                        universal_newlines=True)
         stdout_data, stderr_data = executed_cmd.communicate()
 
         return (executed_cmd.returncode, stdout_data, stderr_data)
