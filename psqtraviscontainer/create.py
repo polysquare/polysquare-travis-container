@@ -201,7 +201,7 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
                 repo_lines = repositories_file[0].read().splitlines(False)
                 package_system.add_repositories(repo_lines)
 
-            packages = re.findall(r"\w+", packages_file[0].read())
+            packages = re.findall(r"[^\s]+", packages_file[0].read())
             package_system.install_packages(packages)
 
     try:
