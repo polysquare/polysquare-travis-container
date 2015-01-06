@@ -51,10 +51,6 @@ class Dpkg(object):
             (_UBUNTU_PORT_ARCHS, _UBUNTU_PORT_ARCHIVE)
         ]
 
-        _launchpad_url = ["http://ppa.launchpad.net/"]
-        _ubuntu_url = [u[1] for u in _ubuntu_urls if self._arch in u[0]]
-        _debian_url = ["http://ftp.debian.org/"]
-
         def _format_user_line(line, kwargs):
             """Format a line and turns it into a valid repo line."""
             formatted_line = line.format(**kwargs)  # pylint:disable=W0142
@@ -65,9 +61,9 @@ class Dpkg(object):
             return value[0] if len(value) else "ERROR"
 
         format_keys = {
-            "ubuntu": _ubuntu_url,
-            "debian": _debian_url,
-            "launchpad": _launchpad_url,
+            "ubuntu": [u[1] for u in _ubuntu_urls if self._arch in u[0]],
+            "debian": ["http://ftp.debian.org/"],
+            "launchpad": ["http://ppa.launchpad.net/"],
             "release": [self._config.release]
         }
         format_keys = {
@@ -80,9 +76,9 @@ class Dpkg(object):
         # permissions.
         with tempfile.NamedTemporaryFile() as bash_script:
             append_lines = [_format_user_line(l, format_keys) for l in repos]
-            for append_line in append_lines:
-                append_cmd = ("echo \"{0}\" >>"
-                              " /etc/apt/sources.list").format(append_line)
+            for count, append_line in enumerate(append_lines):
+                path = "/etc/apt/sources.list.d/{0}.list".format(count)
+                append_cmd = "echo \"{0}\" > {1}\n".format(append_line, path)
                 bash_script.write(six.b(append_cmd))
 
             bash_script.flush()
