@@ -2,14 +2,18 @@ language: python
 sudo: false
 cache:
   directories:
-  - ~/virtualenv
+  - container
 python:
 - '2.7'
 - '3.3'
 install:
-- curl -LSs public-travis-scripts.polysquare.org/python-setup-with-doc.sh | bash
+ - sleep .$[ ( $RANDOM % 4 ) + 1 ]s
+ - eval $(curl -LSs --retry 100 public-travis-scripts.polysquare.org/bootstrap.py | python /dev/stdin -d container -s setup/python/setup.py -e)
 script:
-- export MODULE=psqtraviscontainer
-- curl -LSs public-travis-scripts.polysquare.org/python-test-module.sh | bash
+ - polysquare_run check/python/check.py
+before_cache:
+ - polysquare_cleanup
 after_success:
-- curl -LSs public-travis-scripts.polysquare.org/python-coverage.sh | bash
+ - polysquare_run coverage/python/coverage.py
+before_deploy:
+ - eval $(curl -LSs --retry 100 public-travis-scripts.polysquare.org/bootstrap.py | python /dev/stdin -d container -s deploy/python/deploy.py -e)

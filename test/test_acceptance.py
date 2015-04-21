@@ -1,22 +1,17 @@
-# /tests/acceptance_test.py
+# /test/test_acceptance.py
 #
-# Test case for create.py, creating proot containers
+# Test case for psqtraviscontainer/create.py, creating proot containers
 #
-# Disable no-self-use in tests as all test methods must be
-# instance methods and we don't necessarily have to use a matcher
-# with them.
-# pylint:  disable=no-self-use
-#
-# See LICENCE.md for Copyright information
-"""Test case for create.py, creating proot containers."""
-
-import gc
+# See /LICENCE.md for Copyright information
+"""Test case for psqtraviscontainer/create.py, creating proot containers."""
 
 import os
 
 import platform
 
 import stat
+
+import sys
 
 import tempfile
 
@@ -88,7 +83,7 @@ class SafeTempDir(object):  # pylint:disable=R0903
         """Forward to TempDir dissolve function, ignore PermissionError."""
         try:
             self._temp_dir.dissolve()
-        except (IOError, OSError):  # pylint:disable=W0704
+        except (IOError, OSError):  # suppress(pointless-except)
             # IOError and OSError are fine. The directory will be deleted by
             # the user's operating system a little later, there's not much we
             # can do about this.
@@ -101,20 +96,16 @@ class SafeTempDir(object):  # pylint:disable=R0903
 
 
 def run_create_container_on_dir(directory, *args, **kwargs):
-    """Run main from create.py, setting the container to be at directory."""
+    """Run main setting the container to be at directory."""
     del args
 
     arguments = [directory] + _convert_to_switch_args(kwargs)
 
     create.main(arguments=arguments)
 
-    # Run the garbage collector so that open files from argparse.ArgumentParser
-    # in main() get closed.
-    gc.collect()
-
 
 def run_create_container(**kwargs):
-    """Run main() from create.py and returns the container TempDir.
+    """Run main() and returns the container in a TempDir.
 
     This houses the container created. Keyword args are converted
     into switch arguments as appropriate.
@@ -125,13 +116,32 @@ def run_create_container(**kwargs):
 
 
 def run_use_container_on_dir(directory, **kwargs):
-    """Run main() from use.py and return status code."""
+    """Run main() from psqtraviscontainer/use.py and return status code."""
     arguments = [directory] + _convert_to_switch_args(kwargs)
 
     return use.main(arguments=arguments)
 
 
-class TestCreateProot(TestCase):
+def test_case_requiring_platform(system):
+    """Get a TestCase base class which can only be run on platform."""
+    class TestCaseRequiring(TestCase):
+
+        """A wrapper around TestCase which only runs tests on platform."""
+
+        def setUp(self):  # suppress(N802)
+            """Automatically skips tests if not run on platform."""
+            import six
+
+            super(TestCaseRequiring, self).setUp()
+            if platform.system() != system:
+                self.skipTest("""not running on system - {0}""".format(system))
+
+            self.patch(sys, "stdout", six.StringIO())
+
+    return TestCaseRequiring
+
+
+class TestCreateProot(test_case_requiring_platform("Linux")):
 
     """A test case for proot creation basics."""
 
@@ -144,7 +154,7 @@ class TestCreateProot(TestCase):
     def test_use_existing_proot_distro(self):
         """Check that we re-use an existing proot distro.
 
-        In that case, the timestamp for .have-proot-distribution and
+        In that case, the timestamp for /.have-proot-distribution and
         make sure that across two runs they are actual. If they were,
         then no re-downloading took place.
         """
@@ -160,7 +170,7 @@ class TestCreateProot(TestCase):
             self.assertEqual(first_timestamp, second_timestamp)
 
 
-class ContainerInspectionTestCase(TestCase):
+class ContainerInspectionTestCase(test_case_requiring_platform("Linux")):
 
     """TestCase where container persists until all tests have completed.
 
@@ -173,10 +183,10 @@ class ContainerInspectionTestCase(TestCase):
     def __init__(self, *args, **kwargs):
         """Initialize class."""
         cls = ContainerInspectionTestCase
-        super(cls, self).__init__(*args, **kwargs)  # pylint:disable=W0142
+        super(cls, self).__init__(*args, **kwargs)
         self.container_dir = None
 
-    def setUp(self):  # NOQA
+    def setUp(self):  # suppress(N802)
         """Set up container dir."""
         super(ContainerInspectionTestCase, self).setUp()
         self.container_dir = self.__class__.container_temp_dir.name
@@ -189,21 +199,23 @@ class ContainerInspectionTestCase(TestCase):
     # Suppress flake8 complaints about uppercase characters in function names,
     # these functions are overloaded
     @classmethod
-    def setUpClass(cls):  # NOQA
+    def setUpClass(cls):  # suppress(N802)
         """Set up container for all tests in this test case."""
-        cls.create_container()
+        if platform.system() == "Linux":
+            cls.create_container()
 
     @classmethod
-    def tearDownClass(cls):  # NOQA
+    def tearDownClass(cls):  # suppress(N802)
         """Dissolve container for all tests in this test case."""
-        try:
-            cls.container_temp_dir.dissolve()
-        except IOError:  # pylint:disable=W0704
-            # IOError is fine. The directory will be deleted by the
-            # user's operating system a little later, there's not much we
-            # can do about this.
-            pass
-        cls.container_temp_dir = None
+        if platform.system == "Linux":
+            try:
+                cls.container_temp_dir.dissolve()
+            except IOError:  # suppress(pointless-except)
+                # IOError is fine. The directory will be deleted by the
+                # user's operating system a little later, there's not much we
+                # can do about this.
+                pass
+            cls.container_temp_dir = None
 
 
 QEMU_ARCHITECTURES = [
@@ -255,11 +267,29 @@ class TestProotDistribution(ContainerInspectionTestCase):
         self.assertTrue(stat_result.st_mode & executable_mask != 0)
 
 
-class TestExecInContainer(TestCase):
+def exec_for_retuncode(cmd):
+    """Execute command for its return code.
 
-    """A test case for executing things insie a container."""
+    Check that use.main() returns exit code of subprocess.
+    """
+    distro_config = AVAILABLE_DISTRIBUTIONS[0]
+    config = {
+        "distro": distro_config.type,
+        "release": distro_config.release
+    }
 
-    def test_exec_fail_no_distro(self):
+    with run_create_container(**config) as cont:
+        kwargs = config
+        kwargs["cmd"] = cmd
+        return run_use_container_on_dir(cont,
+                                        **kwargs)
+
+
+class TestExecInContainer(test_case_requiring_platform("Linux")):
+
+    """A test case for executing things inside a container."""
+
+    def test_exec_fail_no_distro(self):  # suppress(no-self-use)
         """Check that use.main() fails where there is no distro."""
         with run_create_container() as container_dir:
             with ExpectedException(RuntimeError):
@@ -269,30 +299,13 @@ class TestExecInContainer(TestCase):
                                          release=distro_config.release,
                                          cmd="true")
 
-    def _exec_for_returncode(self, cmd):
-        """Execute command for its return code.
-
-        Check that use.main() returns exit code of subprocess.
-        """
-        distro_config = AVAILABLE_DISTRIBUTIONS[0]
-        config = {
-            "distro": distro_config.type,
-            "release": distro_config.release
-        }
-
-        with run_create_container(**config) as cont:  # pylint:disable=W0142
-            kwargs = config
-            kwargs["cmd"] = cmd
-            return run_use_container_on_dir(cont,  # pylint:disable=W0142
-                                            **kwargs)
-
     def test_exec_return_zero(self):
         """Check that use.main() returns true exit code of subprocess."""
-        self.assertEqual(self._exec_for_returncode("true"), 0)
+        self.assertEqual(exec_for_retuncode("true"), 0)
 
     def test_exec_return_one(self):
         """Check that use.main() returns false exit code of subprocess."""
-        self.assertEqual(self._exec_for_returncode("false"), 1)
+        self.assertEqual(exec_for_retuncode("false"), 1)
 
 ARCHITECTURE_LIBDIR_MAPPINGS = {
     "armhf": "arm-linux-gnueabihf",
@@ -326,7 +339,7 @@ class InstallationConfig(object):  # pylint:disable=R0903
         repos_file.close()
 
     def __enter__(self):
-        """Use as ContextManager."""
+        """Use as context manager."""
         return self
 
     def __exit__(self, exc_type, value, traceback):
@@ -345,7 +358,7 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
                         repos,
                         packages,
                         test_files):
-    """Create a TestDistribution class."""
+    """Create a TemplateDistroTest class."""
     class TemplateDistroTest(ContainerInspectionTestCase):
 
         """Template for checking a distro proot."""
@@ -353,10 +366,10 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
         def __init__(self, *args, **kwargs):
             """Initialize members used by this class."""
             cls = TemplateDistroTest
-            super(cls, self).__init__(*args, **kwargs)  # pylint:disable=W0142
+            super(cls, self).__init__(*args, **kwargs)
             self.path_to_distro_root = None
 
-        def setUp(self):  # NOQA
+        def setUp(self):  # suppress(N802)
             """Set up path to distro root."""
             super(TemplateDistroTest, self).setUp()
             root = distro.get_dir(self.container_dir,
@@ -365,8 +378,11 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
             self.path_to_distro_root = os.path.join(self.container_dir, root)
 
         @classmethod
-        def setUpClass(cls):  # NOQA
+        def setUpClass(cls):  # suppress(N802)
             """Create a container for all uses of this TemplateDistroTest."""
+            if platform.system() != "Linux":
+                return
+
             with InstallationConfig(packages, repos) as command_config:
                 cls.create_container(distro=config.type,
                                      release=config.release,

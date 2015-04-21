@@ -3,8 +3,8 @@
 # Module which handles the creation of proot in which APT packages
 # can be readily installed
 #
-# See LICENCE.md for Copyright information
-""" Module which handles the creation of proot.
+# See /LICENCE.md for Copyright information
+"""Module which handles the creation of proot.
 
 The proot for a distribution is a special directory entered with the proot
 command, which behaves like a chroot, except that no root access is required
@@ -28,8 +28,6 @@ import tarfile
 
 from contextlib import closing
 
-import configargparse
-
 from debian import arfile
 
 from psqtraviscontainer import architecture
@@ -47,7 +45,9 @@ import tempdir
 from termcolor import colored
 
 _PROOT_URL_BASE = "http://static.proot.me/proot-{arch}"
-_QEMU_URL_BASE = "http://download.opensuse.org/repositories/home:/cedric-vincent/xUbuntu_12.04/{arch}/qemu-user-mode_1.6.1-1_{arch}.deb"  # NOQA # pylint:disable=line-too-long
+_QEMU_URL_BASE = ("http://download.opensuse.org/repositories"
+                  "/home:/cedric-vincent/xUbuntu_12.04/{arch}/"
+                  "qemu-user-mode_1.6.1-1_{arch}.deb")
 
 
 def _extract_deb_data(archive, tmp_dir):
@@ -61,7 +61,7 @@ def _extract_deb_data(archive, tmp_dir):
 def _fetch_proot_distribution(container_root):
     """Fetch the initial proot distribution if it is not available.
 
-    Touches .have-proot-distribution when complete
+    Touches /.have-proot-distribution when complete
     """
     path_to_proot_check = constants.have_proot_distribution(container_root)
     path_to_proot_dir = constants.proot_distribution_dir(container_root)
@@ -87,8 +87,8 @@ def _fetch_proot_distribution(container_root):
             # cause tons of pollution
             qemu_tmp = os.path.join(path_to_proot_dir, "_qemu_tmp")
             with directory.Navigation(qemu_tmp):
-                sys.stdout.write(colored(("-> Extracting "
-                                          "{0}\n").format(qemu_deb.path()),
+                sys.stdout.write(colored(("""-> Extracting """
+                                          """{0}\n""").format(qemu_deb.path()),
                                          "magenta",
                                          attrs=["bold"]))
                 archive = arfile.ArFile(qemu_deb.path())
@@ -104,19 +104,19 @@ def _fetch_proot_distribution(container_root):
 
     try:
         os.stat(path_to_proot_check)
-        sys.stdout.write(colored(u"\N{check mark} "
-                                 "Using pre-existing proot distribution\n",
+        sys.stdout.write(colored(u"""-> """
+                                 """Using pre-existing proot distribution\n""",
                                  "green",
                                  attrs=["bold"]))
 
     except OSError:
 
-        sys.stdout.write(colored(("Creating distribution of proot "
-                                  "in {0}\n").format(container_root),
+        sys.stdout.write(colored(("""Creating distribution of proot """
+                                  """in {0}\n""").format(container_root),
                                  "yellow",
                                  attrs=["bold"]))
 
-        # Distro check does not exist - create the _proot directory
+        # Distro check does not exist - create the ./_proot directory
         # and download files for this architecture
         with directory.Navigation(path_to_proot_dir):
             proot_arch = architecture.Alias.universal(platform.machine())
@@ -127,9 +127,10 @@ def _fetch_proot_distribution(container_root):
         with open(path_to_proot_check, "w+") as check_file:
             check_file.write("done")
 
-        sys.stdout.write(colored(u"\N{check mark} "
-                                 "Successfully installed proot distribution"
-                                 " to {0}\n".format(container_root),
+        sys.stdout.write(colored(u"""\N{check mark} """
+                                 u"""Successfully installed proot """
+                                 u"""distribution to """
+                                 u"""{0}\n""".format(container_root),
                                  "green",
                                  attrs=["bold"]))
 
@@ -140,25 +141,27 @@ def _print_distribution_details(details, distro_arch):
     """Print distribution details."""
     pkgsysname = details.pkgsys.__name__
 
-    sys.stdout.write(colored("\nConfigured Distribution:\n",
-                             "white",
-                             attrs=["underline"]) +
-                     " - Distribution Name: {0}\n".format(colored(details.type,
-                                                                  "yellow")) +
-                     " - Release: {0}\n".format(colored(details.release,
-                                                        "yellow")) +
-                     " - Architecture: {0}\n".format(colored(distro_arch,
-                                                             "yellow")) +
-                     " - Package System: {0}\n".format(colored(pkgsysname,
+    output = (colored("""\nConfigured Distribution:\n""",
+                      "white",
+                      attrs=["underline"]) +
+              """ - Distribution Name: {0}\n""".format(colored(details.type,
                                                                "yellow")) +
-                     "\n")
+              """ - Release: {0}\n""".format(colored(details.release,
+                                                     "yellow")) +
+              """ - Architecture: {0}\n""".format(colored(distro_arch,
+                                                          "yellow")) +
+              """ - Package System: {0}\n""".format(colored(pkgsysname,
+                                                            "yellow")) +
+              "\n")
+
+    sys.stdout.write(output)
 
 
 def _extract_distro_archive(distro_archive_file, distro_folder):
     """Extract distribution archive into distro_folder."""
     with tarfile.open(name=distro_archive_file.path()) as archive:
-        msg = ("-> Extracting "
-               "{0}\n").format(distro_archive_file.path())
+        msg = ("""-> Extracting """
+               """{0}\n""").format(distro_archive_file.path())
         extract_members = [m for m in archive.getmembers()
                            if not m.isdev()]
         sys.stdout.write(colored(msg, "magenta", attrs=["bold"]))
@@ -169,8 +172,8 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
                         proot_distro,
                         details,
                         distro_arch,
-                        repositories_file,
-                        packages_file):
+                        repositories_path,
+                        packages_path):
     """Lazy-initialize distribution and return it."""
     path_to_distro_folder = distro.get_dir(container_root,
                                            details,
@@ -187,7 +190,7 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
 
     def _install_packages(details):
         """Install packages into the distribution."""
-        if packages_file:
+        if packages_path:
             proot_executor = use.PtraceRootExecutor(proot_distro,
                                                     container_root,
                                                     details,
@@ -197,20 +200,24 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
                                             proot_executor)
 
             # Add any repositories to the package system now
-            if repositories_file:
-                repo_lines = repositories_file[0].read().splitlines(False)
+            if repositories_path:
+                with open(repositories_path, "r") as repositories_file:
+                    repo_lines = repositories_file[0].read().splitlines(False)
+
                 package_system.add_repositories(repo_lines)
 
-            packages = re.findall(r"[^\s]+", packages_file[0].read())
+            with open(packages_path) as packages_file:
+                packages = re.findall(r"[^\s]+", packages_file[0].read())
+
             package_system.install_packages(packages)
 
     try:
         os.stat(path_to_distro_folder)
-        sys.stdout.write(colored(u"\N{check mark} "
-                                 "Using pre-existing folder for distro "
-                                 "{0} {1} ({2})\n".format(details.type,
-                                                          details.release,
-                                                          distro_arch),
+        sys.stdout.write(colored(u"""\N{check mark}  """
+                                 u"""Using pre-existing folder for distro """
+                                 u"""{0} {1} ({2})\n""".format(details.type,
+                                                               details.release,
+                                                               distro_arch),
                                  "green",
                                  attrs=["bold"]))
     except OSError:
@@ -230,20 +237,22 @@ def _parse_arguments(arguments=None):
     parser = common_options.get_parser("Create")
     parser.add_argument("--repositories",
                         nargs=1,
-                        type=configargparse.FileType("r"),
-                        help="A file containing a list of repositories to add "
-                             "before installing packages. Special keywords "
-                             "will control the operation of this file: \n"
-                             "{release}: The distribution release (eg, "
-                             "precise)\n"
-                             "{ubuntu}: Ubuntu archive URL\n"
-                             "{launchpad}: Launchpad PPA URL header (eg,"
-                             "ppa.launchpad.net)\n",
+                        type=str,
+                        help="""A file containing a list of repositories to """
+                             """add before installing packages. Special """
+                             """keywords will control the operation of this """
+                             """file: \n"""
+                             """{release}: The distribution release (eg, """
+                             """precise)\n"""
+                             """{ubuntu}: Ubuntu archive URL\n"""
+                             """{launchpad}: Launchpad PPA URL header (eg,"""
+                             """ppa.launchpad.net)\n""",
                         default=None)
     parser.add_argument("--packages",
                         nargs=1,
-                        type=configargparse.FileType("r"),
-                        help="A file containing a list of packages to install",
+                        type=str,
+                        help="""A file containing a list of packages """
+                             """to install""",
                         default=None)
 
     return parser.parse_args(arguments)
@@ -274,9 +283,9 @@ def main(arguments=None):
                             result.repositories,
                             result.packages)
 
-    sys.stdout.write(colored(u"\N{check mark} "
-                             "Container has been set up "
-                             "in {0}\n".format(result.containerdir[0]),
+    sys.stdout.write(colored(u"""\N{check mark}  """
+                             u"""Container has been set up """
+                             u"""in {0}\n""".format(result.containerdir[0]),
                              "green",
                              attrs=["bold"]))
 

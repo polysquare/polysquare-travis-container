@@ -3,7 +3,7 @@
 # Module which provides a helper for determining the names of various
 # processor architectures on various distributions.
 #
-# See LICENCE.md for Copyright information
+# See /LICENCE.md for Copyright information
 """Architecture handling."""
 
 from collections import namedtuple

@@ -69,7 +69,7 @@ Containers can be created with `psq-travis-container-create`:
                             control the operation of this file: {release}: The
                             distribution release (eg, precise) {ubuntu}: Ubuntu
                             archive URL {launchpad}: Launchpad PPA URL header
-                            (eg,ppa.launchpad.net)
+                            (eg, http://ppa.launchpad.net)
       --packages PACKAGES   A file containing a list of packages to install
 
 The distribution filesystem itself is placed in a subdirectory of

@@ -2,7 +2,7 @@
 #
 # Initializes the module, namely initializes colorama
 #
-# See LICENCE.md for Copyright information
+# See /LICENCE.md for Copyright information
 """Initializes the module, namely initializes colorama."""
 
 import colorama

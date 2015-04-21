@@ -2,7 +2,7 @@
 #
 # Module with utilities for downloading files.
 #
-# See LICENCE.md for Copyright information
+# See /LICENCE.md for Copyright information
 """Module with utilities for downloading files."""
 
 import os

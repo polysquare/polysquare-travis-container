@@ -1,13 +1,8 @@
-# /tests/unit_test.py
+# /test/test_unit.py
 #
 # Unit tests for various utilities.
 #
-# Disable no-self-use in tests as all test methods must be
-# instance methods and we don't necessarily have to use a matcher
-# with them.
-# pylint:  disable=no-self-use
-#
-# See LICENCE.md for Copyright information
+# See /LICENCE.md for Copyright information
 """Unit tests for various utilities."""
 
 import os
@@ -26,7 +21,7 @@ from testtools.matchers import MatchesPredicate
 
 class TestDirectoryNavigation(TestCase):
 
-    """Tests for directory.py."""
+    """Tests for psqtraviscontainer/directory.py."""
 
     def test_enter_create_dir(self):
         """Check that we create a dir when entering a non-existent one."""
@@ -43,9 +38,9 @@ class TestDirectoryNavigation(TestCase):
             self.assertThat(entered, DirExists())
 
 
-class TestArchitecture(TestCase):  # pylint:disable=R0903
+class TestArchitecture(TestCase):  # suppress(R0903)
 
-    """Tests for architecture.py."""
+    """Tests for psqtraviscontainer/architecture.py."""
 
     def test_unknown_architecture(self):
         """Check that creating a non-special architecture returns metadata."""
@@ -64,11 +59,11 @@ class TestArchitecture(TestCase):  # pylint:disable=R0903
                                                   "% did not return same")))
 
 
-class TestDistroLookup(TestCase):  # pylint:disable=R0903
+class TestDistroLookup(TestCase):  # suppress(R0903)
 
     """Tests for looking up the distro."""
 
-    def test_error_lookup_bad_distro(self):
+    def test_error_lookup_bad_distro(self):  # suppress(no-self-use)
         """Check that looking up a non-existent distro throws."""
         with ExpectedException(RuntimeError):
             distro.lookup("noexist", "noexist", "noexist")
