@@ -21,6 +21,18 @@ Polysquare Travis Container will not run on `pypy` due to the use of `pycurl`.
 
 64 bit executables cannot be emulated on a 32 bit architecture and vice versa.
 
+Installation 
+------------
+`polysquare-travis-container` can be installed using using `pip`, although it is not hosted on PyPI.
+
+Install it with:
+
+    pip install https://github.com/polysquare/polysquare-travis-container/tarball/master \
+    --process-dependency-links
+
+At the moment, `--process-dependency-links` needs to be passed because this project uses a forked
+version of `urlgrabber`.
+
 Creating a container
 --------------------
 
