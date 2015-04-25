@@ -19,7 +19,7 @@ Caveats
 
 Polysquare Travis Container will not run on `pypy` due to the use of `pycurl`.
 
-64 bit executables cannot be emulated on a 32 bit architecture and vice versa.
+64 bit executables cannot be emulated on a 32 bit architecture.
 
 Installation 
 ------------
