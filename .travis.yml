@@ -7,13 +7,10 @@ python:
 - '2.7'
 - '3.3'
 install:
- - sleep .$[ ( $RANDOM % 4 ) + 1 ]s
- - eval $(curl -LSs --retry 100 public-travis-scripts.polysquare.org/bootstrap.py | python /dev/stdin -d container -s setup/python/setup.py -e)
+ - eval $(curl -LSs --retry 100 --connect-timeout 3 public-travis-scripts.polysquare.org/bootstrap.py | python /dev/stdin -d container -s setup/python/setup.py -e)
 script:
  - polysquare_run check/python/check.py
 before_cache:
  - polysquare_cleanup
 after_success:
  - polysquare_run coverage/python/coverage.py
-before_deploy:
- - eval $(curl -LSs --retry 100 public-travis-scripts.polysquare.org/bootstrap.py | python /dev/stdin -d container -s deploy/python/deploy.py -e)
