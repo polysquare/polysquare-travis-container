@@ -2,7 +2,7 @@
 #
 # Utilities for safe directory navigation.
 #
-# See LICENCE.md for Copyright information
+# See /LICENCE.md for Copyright information
 """Utilities for safe directory navigation."""
 
 import errno
@@ -12,7 +12,7 @@ import os
 
 class Navigation(object):  # pylint:disable=R0903
 
-    """ContextManager based class to enter and exit directories."""
+    """Context manager to enter and exit directories."""
 
     def __init__(self, path):
         """Initialize the path we want to change to."""
@@ -25,7 +25,7 @@ class Navigation(object):  # pylint:disable=R0903
         try:
             os.makedirs(self._path)
         except OSError as err:
-            if err.errno != errno.EEXIST:
+            if err.errno != errno.EEXIST:  # suppress(PYC90)
                 raise err
 
         self._current_dir = os.getcwd()

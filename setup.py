@@ -2,14 +2,14 @@
 #
 # Installation and setup script for psqtraviscontainer
 #
-# See LICENCE.md for Copyright information
+# See /LICENCE.md for Copyright information
 """Installation and setup script for psqtraviscontainer."""
 
 from setuptools import find_packages, setup
 
 setup(name="psqtraviscontainer",
-      version="0.0.2",
-      description="Polysquare Travis-CI APT Container Root",
+      version="0.0.3",
+      description="Polysquare Travis-CI Container Root",
       long_description_markdown_filename="README.md",
       author="Sam Spilsbury",
       author_email="smspillaz@gmail.com",
@@ -23,13 +23,13 @@ setup(name="psqtraviscontainer",
       url="http://github.com/polysquare/polysquare-travis-container",
       license="MIT",
       keywords="development travis",
-      packages=find_packages(exclude=["tests"]),
+      packages=find_packages(exclude=["test"]),
       dependency_links=[
           ("https://github.com/smspillaz/urlgrabber/tarball/master"
            "#egg=urlgrabber-3.10.1")
       ],
-      install_requires=["setuptools",
-                        "configargparse",
+      setup_requires=["setuptools-markdown"],
+      install_requires=["configargparse",
                         "pycurl",
                         "python-debian",
                         "six",
@@ -38,13 +38,19 @@ setup(name="psqtraviscontainer",
                         "tempdir",
                         "termcolor"],
       extras_require={
-          "test": ["coverage",
-                   "testtools",
-                   "shutilwhich",
-                   "nose",
-                   "nose-parameterized",
-                   "mock",
-                   "tempdir"]
+          "green": [
+              "coverage",
+              "testtools",
+              "shutilwhich",
+              "nose",
+              "nose-parameterized",
+              "mock",
+              "setuptools-green",
+              "tempdir"
+          ],
+          "polysquarelint": [
+              "polysquare-setuptools-lint"
+          ]
       },
       entry_points={
           "console_scripts": [

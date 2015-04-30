@@ -2,7 +2,7 @@
 #
 # Constants shared across modules.
 #
-# See LICENCE.md for Copyright information
+# See /LICENCE.md for Copyright information
 """Various constants useful for use and create modules."""
 
 import os

@@ -2,13 +2,8 @@
 #
 # Implementations of package-system controllers for various distributions.
 #
-# See LICENCE.md for Copyright information
+# See /LICENCE.md for Copyright information
 """Implementations of package-system controllers for various distributions."""
-
-_UBUNTU_MAIN_ARCHS = ["i386", "amd64"]
-_UBUNTU_PORT_ARCHS = ["armhf", "arm64", "powerpc", "ppc64el"]
-_UBUNTU_MAIN_ARCHIVE = "http://archive.ubuntu.com/ubuntu/"
-_UBUNTU_PORT_ARCHIVE = "http://ports.ubuntu.com/ubuntu-ports/"
 
 import sys
 
@@ -22,6 +17,11 @@ import six
 import tempdir
 
 from termcolor import colored
+
+_UBUNTU_MAIN_ARCHS = ["i386", "amd64"]
+_UBUNTU_PORT_ARCHS = ["armhf", "arm64", "powerpc", "ppc64el"]
+_UBUNTU_MAIN_ARCHIVE = "http://archive.ubuntu.com/ubuntu/"
+_UBUNTU_PORT_ARCHIVE = "http://ports.ubuntu.com/ubuntu-ports/"
 
 
 def _run_task(executor, description, argv):
@@ -38,7 +38,7 @@ class Dpkg(object):
                  config,
                  arch,
                  executor):
-        """Initialize DpkgPackageSystem with DistroConfig."""
+        """Initialize Dpkg with config."""
         super(Dpkg, self).__init__()
         self._config = config
         self._arch = arch
@@ -53,7 +53,7 @@ class Dpkg(object):
 
         def _format_user_line(line, kwargs):
             """Format a line and turns it into a valid repo line."""
-            formatted_line = line.format(**kwargs)  # pylint:disable=W0142
+            formatted_line = line.format(**kwargs)
             return "deb {0}".format(formatted_line)
 
         def _value_or_error(value):
@@ -72,7 +72,7 @@ class Dpkg(object):
 
         # We will be creating a bash script each time we need to add
         # a new source line to our sources list and executing that inside
-        # the proot. This guaruntees that we'll always get the right
+        # the proot. This guarantees that we'll always get the right
         # permissions.
         with tempfile.NamedTemporaryFile() as bash_script:
             append_lines = [_format_user_line(l, format_keys) for l in repos]
@@ -100,13 +100,13 @@ class Dpkg(object):
 
 class Yum(object):
 
-    """RedHat Packaging System."""
+    """Red Hat Packaging System."""
 
     def __init__(self,
                  config,
                  arch,
                  executor):
-        """Initialize DpkgPackageSystem with DistroConfig."""
+        """Initialize Dpkg with config."""
         super(Yum, self).__init__()
         self._config = config
         self._executor = executor

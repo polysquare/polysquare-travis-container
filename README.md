@@ -21,17 +21,20 @@ Polysquare Travis Container will not run on `pypy` due to the use of `pycurl`.
 
 64 bit executables cannot be emulated on a 32 bit architecture.
 
-Installation 
+Installation
 ------------
-`polysquare-travis-container` can be installed using using `pip`, although it is not hosted on PyPI.
+
+`polysquare-travis-container` can be installed using using `pip`, although it
+is not hosted on PyPI.
 
 Install it with:
 
-    pip install https://github.com/polysquare/polysquare-travis-container/tarball/master \
+    pip install \
+    https://github.com/polysquare/polysquare-travis-container/tarball/master \
     --process-dependency-links
 
-At the moment, `--process-dependency-links` needs to be passed because this project uses a forked
-version of `urlgrabber`.
+At the moment, `--process-dependency-links` needs to be passed because this
+project uses a forked version of `urlgrabber`.
 
 Creating a container
 --------------------
@@ -69,7 +72,7 @@ Containers can be created with `psq-travis-container-create`:
                             control the operation of this file: {release}: The
                             distribution release (eg, precise) {ubuntu}: Ubuntu
                             archive URL {launchpad}: Launchpad PPA URL header
-                            (eg,ppa.launchpad.net)
+                            (eg, http://ppa.launchpad.net)
       --packages PACKAGES   A file containing a list of packages to install
 
 The distribution filesystem itself is placed in a subdirectory of

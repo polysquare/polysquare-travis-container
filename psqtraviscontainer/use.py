@@ -2,8 +2,8 @@
 #
 # Module which handles the running of scripts and commands inside of a proot
 #
-# See LICENCE.md for Copyright information
-""" Module which handles the running of scripts inside of a proot."""
+# See /LICENCE.md for Copyright information
+"""Module which handles the running of scripts inside of a proot."""
 
 import os
 
@@ -75,8 +75,8 @@ class PtraceRootExecutor(object):
         if returncode != 0:
             sys.stderr.write(stdout_data)
             sys.stderr.write(stderr_data)
-            raise RuntimeError("{0} failed with {1}".format(" ".join(argv),
-                                                            returncode))
+            raise RuntimeError("""{0} failed with {1}""".format(" ".join(argv),
+                                                                returncode))
 
 
 def proot_distro_from_container(container_dir):
@@ -104,7 +104,7 @@ def _parse_arguments(arguments=None):
     parser = common_options.get_parser("Use")
     parser.add_argument("--cmd",
                         nargs="*",
-                        help="Command to run inside of container",
+                        help="""Command to run inside of container""",
                         default=None,
                         required=True)
     return parser.parse_args(arguments)
@@ -113,13 +113,13 @@ def _parse_arguments(arguments=None):
 def _check_if_exists(entity):
     """Raise RuntimeError if entity does not exist."""
     if not os.path.exists(entity):
-        raise RuntimeError("A required entity {0} does not exist\n"
-                           "Try running psq-travis-container-create "
-                           "first before using psq-travis-container-use.")
+        raise RuntimeError("""A required entity {0} does not exist\n"""
+                           """Try running psq-travis-container-create """
+                           """first before using psq-travis-container-use.""")
 
 
 def main(arguments=None):
-    """Select a distro in the container root and runs a comamnd in it."""
+    """Select a distro in the container root and runs a command in it."""
     result = _parse_arguments(arguments=arguments)
     distro_config, arch = distro.lookup(result.distro[0],
                                         result.release[0],

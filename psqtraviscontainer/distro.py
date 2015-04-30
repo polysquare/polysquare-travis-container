@@ -2,7 +2,7 @@
 #
 # Module in which all configurations for various distributions are stored.
 #
-# See LICENCE.md for Copyright information
+# See /LICENCE.md for Copyright information
 """Various distribution configurations are stored here."""
 
 import os
