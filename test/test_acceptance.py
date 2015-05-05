@@ -207,14 +207,8 @@ class ContainerInspectionTestCase(test_case_requiring_platform("Linux")):
     @classmethod
     def tearDownClass(cls):  # suppress(N802)
         """Dissolve container for all tests in this test case."""
-        if platform.system == "Linux":
-            try:
-                cls.container_temp_dir.dissolve()
-            except IOError:  # suppress(pointless-except)
-                # IOError is fine. The directory will be deleted by the
-                # user's operating system a little later, there's not much we
-                # can do about this.
-                pass
+        if cls.container_temp_dir:
+            cls.container_temp_dir.dissolve()
             cls.container_temp_dir = None
 
 

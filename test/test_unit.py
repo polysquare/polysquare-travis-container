@@ -25,15 +25,16 @@ class TestDirectoryNavigation(TestCase):
 
     def test_enter_create_dir(self):
         """Check that we create a dir when entering a non-existent one."""
-        does_not_exist = "does_not_exist"
-        with directory.Navigation(os.path.join(os.getcwd(),
-                                               does_not_exist)) as entered:
+        does_not_exist = os.path.join(os.getcwd(), "does_not_exist")
+        self.addCleanup(lambda: shutil.rmtree(does_not_exist))
+        with directory.Navigation(does_not_exist) as entered:
             self.assertThat(entered, DirExists())
 
     def test_enter_exist_dir(self):
         """Check that we can enter an existing dir."""
         existing_dir = os.path.join(os.getcwd(), "existing")
         os.makedirs(existing_dir)
+        self.addCleanup(lambda: shutil.rmtree(existing_dir))
         with directory.Navigation(existing_dir) as entered:
             self.assertThat(entered, DirExists())
 
