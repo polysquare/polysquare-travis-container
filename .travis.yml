@@ -7,7 +7,7 @@ python:
 - '2.7'
 - '3.3'
 install:
- - eval $(curl -LSs --retry 100 --connect-timeout 3 public-travis-scripts.polysquare.org/bootstrap.py | python /dev/stdin -d container -s setup/python/setup.py -e)
+ - eval $(curl -LSs --retry 100 --connect-timeout 3 public-travis-scripts.polysquare.org/bootstrap.py | python /dev/stdin -d container -s container-setup.py -e)
 script:
  - polysquare_run check/python/check.py
 before_cache:

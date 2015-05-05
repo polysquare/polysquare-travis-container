@@ -17,11 +17,14 @@ import tempfile
 
 from collections import namedtuple
 
+from contextlib import contextmanager
+
+from test.testutil import download_file_cached
+
 from nose_parameterized import parameterized
 
 from psqtraviscontainer import architecture
 from psqtraviscontainer import create
-from psqtraviscontainer import distro
 from psqtraviscontainer import use
 
 from psqtraviscontainer.architecture import Alias
@@ -29,7 +32,9 @@ from psqtraviscontainer.architecture import Alias
 from psqtraviscontainer.constants import have_proot_distribution
 from psqtraviscontainer.constants import proot_distribution_dir
 
-from psqtraviscontainer.distro import AVAILABLE_DISTRIBUTIONS
+from psqtraviscontainer.distro import available_distributions
+
+from psqtraviscontainer.linux_container import get_dir_for_distro
 
 import tempdir
 
@@ -101,7 +106,8 @@ def run_create_container_on_dir(directory, *args, **kwargs):
 
     arguments = [directory] + _convert_to_switch_args(kwargs)
 
-    create.main(arguments=arguments)
+    with cached_downloads():
+        create.main(arguments=arguments)
 
 
 def run_create_container(**kwargs):
@@ -130,13 +136,9 @@ def test_case_requiring_platform(system):
 
         def setUp(self):  # suppress(N802)
             """Automatically skips tests if not run on platform."""
-            import six
-
             super(TestCaseRequiring, self).setUp()
             if platform.system() != system:
                 self.skipTest("""not running on system - {0}""".format(system))
-
-            self.patch(sys, "stdout", six.StringIO())
 
     return TestCaseRequiring
 
@@ -168,6 +170,29 @@ class TestCreateProot(test_case_requiring_platform("Linux")):
             second_timestamp = os.stat(path_to_proot_stamp).st_mtime
 
             self.assertEqual(first_timestamp, second_timestamp)
+
+
+@contextmanager
+def cached_downloads():
+    """Context manager to ensure that download_file is patched to use cache."""
+    import six
+    import psqtraviscontainer.download  # suppress(PYC50)
+
+    original_download_file = psqtraviscontainer.download.download_file
+    psqtraviscontainer.download.download_file = download_file_cached
+
+    original_stdout = sys.stdout
+    sys.stdout = six.StringIO()
+
+    original_stderr = sys.stderr
+    sys.stderr = six.StringIO()
+
+    try:
+        yield
+    finally:
+        psqtraviscontainer.download.download_file = original_download_file
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
 
 
 class ContainerInspectionTestCase(test_case_requiring_platform("Linux")):
@@ -207,14 +232,8 @@ class ContainerInspectionTestCase(test_case_requiring_platform("Linux")):
     @classmethod
     def tearDownClass(cls):  # suppress(N802)
         """Dissolve container for all tests in this test case."""
-        if platform.system == "Linux":
-            try:
-                cls.container_temp_dir.dissolve()
-            except IOError:  # suppress(pointless-except)
-                # IOError is fine. The directory will be deleted by the
-                # user's operating system a little later, there's not much we
-                # can do about this.
-                pass
+        if cls.container_temp_dir:
+            cls.container_temp_dir.dissolve()
             cls.container_temp_dir = None
 
 
@@ -272,10 +291,10 @@ def exec_for_retuncode(cmd):
 
     Check that use.main() returns exit code of subprocess.
     """
-    distro_config = AVAILABLE_DISTRIBUTIONS[0]
+    distro_config = available_distributions()[0]
     config = {
         "distro": distro_config.type,
-        "release": distro_config.release
+        "release": distro_config.kwargs["release"]
     }
 
     with run_create_container(**config) as cont:
@@ -293,10 +312,11 @@ class TestExecInContainer(test_case_requiring_platform("Linux")):
         """Check that use.main() fails where there is no distro."""
         with run_create_container() as container_dir:
             with ExpectedException(RuntimeError):
-                distro_config = AVAILABLE_DISTRIBUTIONS[0]
+                distro_config = available_distributions()[0]
+                release = distro_config.kwargs["release"]
                 run_use_container_on_dir(container_dir,
                                          distro=distro_config.type,
-                                         release=distro_config.release,
+                                         release=release,
                                          cmd="true")
 
     def test_exec_return_zero(self):
@@ -372,9 +392,9 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
         def setUp(self):  # suppress(N802)
             """Set up path to distro root."""
             super(TemplateDistroTest, self).setUp()
-            root = distro.get_dir(self.container_dir,
-                                  config,
-                                  config.archfetch(arch))
+            root = get_dir_for_distro(self.container_dir,
+                                      config,
+                                      config.kwargs["archfetch"](arch))
             self.path_to_distro_root = os.path.join(self.container_dir, root)
 
         @classmethod
@@ -385,7 +405,7 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
 
             with InstallationConfig(packages, repos) as command_config:
                 cls.create_container(distro=config.type,
-                                     release=config.release,
+                                     release=config.kwargs["release"],
                                      arch=arch,
                                      repos=command_config.repos_path,
                                      packages=command_config.packages_path)
@@ -453,12 +473,12 @@ def get_distribution_tests():
     """Fetch distribution tests as dictionary."""
     tests = {}
 
-    for config in AVAILABLE_DISTRIBUTIONS:
-        for distro_arch in config.archs:
+    for config in available_distributions():
+        for distro_arch in config.kwargs["arch"]:
             # Blacklist 64-bit ABIs that don't emulate properly
             if Alias.universal(distro_arch) != _blacklisted_arch():
                 name = "Test{0}{1}{2}Distro".format(config.type,
-                                                    config.release,
+                                                    config.kwargs["release"],
                                                     distro_arch)
 
                 repositories_to_add = _DISTRO_INFO[config.type].repo
