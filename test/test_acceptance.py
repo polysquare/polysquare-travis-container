@@ -17,11 +17,14 @@ import tempfile
 
 from collections import namedtuple
 
+from contextlib import contextmanager
+
+from test.testutil import download_file_cached
+
 from nose_parameterized import parameterized
 
 from psqtraviscontainer import architecture
 from psqtraviscontainer import create
-from psqtraviscontainer import distro
 from psqtraviscontainer import use
 
 from psqtraviscontainer.architecture import Alias
@@ -101,7 +104,8 @@ def run_create_container_on_dir(directory, *args, **kwargs):
 
     arguments = [directory] + _convert_to_switch_args(kwargs)
 
-    create.main(arguments=arguments)
+    with cached_downloads():
+        create.main(arguments=arguments)
 
 
 def run_create_container(**kwargs):
@@ -130,13 +134,9 @@ def test_case_requiring_platform(system):
 
         def setUp(self):  # suppress(N802)
             """Automatically skips tests if not run on platform."""
-            import six
-
             super(TestCaseRequiring, self).setUp()
             if platform.system() != system:
                 self.skipTest("""not running on system - {0}""".format(system))
-
-            self.patch(sys, "stdout", six.StringIO())
 
     return TestCaseRequiring
 
@@ -168,6 +168,29 @@ class TestCreateProot(test_case_requiring_platform("Linux")):
             second_timestamp = os.stat(path_to_proot_stamp).st_mtime
 
             self.assertEqual(first_timestamp, second_timestamp)
+
+
+@contextmanager
+def cached_downloads():
+    """Context manager to ensure that download_file is patched to use cache."""
+    import six
+    import psqtraviscontainer.download  # suppress(PYC50)
+
+    original_download_file = psqtraviscontainer.download.download_file
+    psqtraviscontainer.download.download_file = download_file_cached
+
+    original_stdout = sys.stdout
+    sys.stdout = six.StringIO()
+
+    original_stderr = sys.stderr
+    sys.stderr = six.StringIO()
+
+    try:
+        yield
+    finally:
+        psqtraviscontainer.download.download_file = original_download_file
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
 
 
 class ContainerInspectionTestCase(test_case_requiring_platform("Linux")):
