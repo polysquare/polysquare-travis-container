@@ -1,0 +1,93 @@
+# /psqtraviscontainer/container.py
+#
+# Abstract base class for an operating system container.
+#
+# See /LICENCE.md for Copyright information
+"""Abstract base class for an operating system container."""
+
+import abc
+
+import os
+
+import re
+
+import subprocess
+
+import sys
+
+from collections import namedtuple
+
+import six
+
+
+class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
+
+    """An abstract class representing an OS container."""
+
+    PopenArguments = namedtuple("PopenArguments", "argv env")
+
+    @abc.abstractmethod
+    def _subprocess_popen_arguments(self, argv):
+        """Return a PopenArguments tuple.
+
+        This indicates what should be passed to subprocess.Popen when the
+        execute method is called on this class.
+        """
+        del argv
+
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def _package_system(self):
+        """Return the package system this container should be using."""
+        raise NotImplementedError()
+
+    def install_packages(self, repositories_path, packages_path):
+        """Install packages and set up repositories as configured.
+
+        :repositories_path: should be a path to a text file containing
+                            a list of repositories to add to the package system
+                            before installing any packages.
+        :packages_path: should be a path to a text file containing a
+                        list of packages to be installed.
+        """
+        if packages_path:
+            package_system = self._package_system()
+
+            # Add any repositories to the package system now
+            if repositories_path:
+                with open(repositories_path, "r") as repositories_file:
+                    repo_lines = repositories_file.read().splitlines(False)
+
+                package_system.add_repositories(repo_lines)
+
+            with open(packages_path) as packages_file:
+                packages = re.findall(r"[^\s]+", packages_file.read())
+
+            package_system.install_packages(packages)
+
+    def execute(self, argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+        """Execute the process and arguments indicated by argv in container."""
+        argv, modify_env = self._subprocess_popen_arguments(argv)
+        env = os.environ.copy()
+        env.update(modify_env)
+        executed_cmd = subprocess.Popen(argv,
+                                        stdout=stdout,
+                                        stderr=stderr,
+                                        env=env,
+                                        universal_newlines=True)
+        stdout_data, stderr_data = executed_cmd.communicate()
+
+        return (executed_cmd.returncode, stdout_data, stderr_data)
+
+    def execute_success(self, argv):
+        """Execute the command specified by argv, throws on failure."""
+        returncode, stdout_data, stderr_data = self.execute(argv,
+                                                            subprocess.PIPE,
+                                                            subprocess.PIPE)
+
+        if returncode != 0:
+            sys.stderr.write(stdout_data)
+            sys.stderr.write(stderr_data)
+            raise RuntimeError("""{0} failed with {1}""".format(" ".join(argv),
+                                                                returncode))

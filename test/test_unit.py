@@ -7,6 +7,8 @@
 
 import os
 
+import shutil
+
 from psqtraviscontainer import architecture
 from psqtraviscontainer import directory
 from psqtraviscontainer import distro
@@ -67,4 +69,4 @@ class TestDistroLookup(TestCase):  # suppress(R0903)
     def test_error_lookup_bad_distro(self):  # suppress(no-self-use)
         """Check that looking up a non-existent distro throws."""
         with ExpectedException(RuntimeError):
-            distro.lookup("noexist", "noexist", "noexist")
+            distro.lookup("noexist", {})

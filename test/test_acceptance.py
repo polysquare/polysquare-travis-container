@@ -32,7 +32,9 @@ from psqtraviscontainer.architecture import Alias
 from psqtraviscontainer.constants import have_proot_distribution
 from psqtraviscontainer.constants import proot_distribution_dir
 
-from psqtraviscontainer.distro import AVAILABLE_DISTRIBUTIONS
+from psqtraviscontainer.distro import available_distributions
+
+from psqtraviscontainer.linux_container import get_dir_for_distro
 
 import tempdir
 
@@ -289,10 +291,10 @@ def exec_for_retuncode(cmd):
 
     Check that use.main() returns exit code of subprocess.
     """
-    distro_config = AVAILABLE_DISTRIBUTIONS[0]
+    distro_config = available_distributions()[0]
     config = {
         "distro": distro_config.type,
-        "release": distro_config.release
+        "release": distro_config.kwargs["release"]
     }
 
     with run_create_container(**config) as cont:
@@ -310,10 +312,11 @@ class TestExecInContainer(test_case_requiring_platform("Linux")):
         """Check that use.main() fails where there is no distro."""
         with run_create_container() as container_dir:
             with ExpectedException(RuntimeError):
-                distro_config = AVAILABLE_DISTRIBUTIONS[0]
+                distro_config = available_distributions()[0]
+                release = distro_config.kwargs["release"]
                 run_use_container_on_dir(container_dir,
                                          distro=distro_config.type,
-                                         release=distro_config.release,
+                                         release=release,
                                          cmd="true")
 
     def test_exec_return_zero(self):
@@ -389,9 +392,9 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
         def setUp(self):  # suppress(N802)
             """Set up path to distro root."""
             super(TemplateDistroTest, self).setUp()
-            root = distro.get_dir(self.container_dir,
-                                  config,
-                                  config.archfetch(arch))
+            root = get_dir_for_distro(self.container_dir,
+                                      config,
+                                      config.kwargs["archfetch"](arch))
             self.path_to_distro_root = os.path.join(self.container_dir, root)
 
         @classmethod
@@ -402,7 +405,7 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
 
             with InstallationConfig(packages, repos) as command_config:
                 cls.create_container(distro=config.type,
-                                     release=config.release,
+                                     release=config.kwargs["release"],
                                      arch=arch,
                                      repos=command_config.repos_path,
                                      packages=command_config.packages_path)
@@ -470,12 +473,12 @@ def get_distribution_tests():
     """Fetch distribution tests as dictionary."""
     tests = {}
 
-    for config in AVAILABLE_DISTRIBUTIONS:
-        for distro_arch in config.archs:
+    for config in available_distributions():
+        for distro_arch in config.kwargs["arch"]:
             # Blacklist 64-bit ABIs that don't emulate properly
             if Alias.universal(distro_arch) != _blacklisted_arch():
                 name = "Test{0}{1}{2}Distro".format(config.type,
-                                                    config.release,
+                                                    config.kwargs["release"],
                                                     distro_arch)
 
                 repositories_to_add = _DISTRO_INFO[config.type].repo
