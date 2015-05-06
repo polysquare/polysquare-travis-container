@@ -112,10 +112,10 @@ class Dpkg(PackageSystem):
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
         _run_task(self._executor,
-                  "Update repositories",
+                  """Update repositories""",
                   ["apt-get", "update", "-qq", "-y", "--force-yes"])
         _run_task(self._executor,
-                  "Install {0}".format(str(package_names)),
+                  """Install {0}""".format(str(package_names)),
                   ["apt-get",
                    "install",
                    "-qq",
@@ -157,7 +157,7 @@ class Yum(PackageSystem):
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
         _run_task(self._executor,
-                  "Install {0}".format(str(package_names)),
+                  """Install {0}""".format(str(package_names)),
                   ["yum", "install", "-y"] + package_names)
 
 

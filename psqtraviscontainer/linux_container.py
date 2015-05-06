@@ -1,9 +1,9 @@
 # /psqtraviscontainer/linux_container.py
 #
-# Abstract base class for an operating system container.
+# Specialization for linux containers, using proot.
 #
 # See /LICENCE.md for Copyright information
-"""Abstract base class for an operating system container."""
+"""Specialization for linux containers, using proot."""
 
 import os
 
@@ -23,7 +23,6 @@ from contextlib import closing
 from debian import arfile
 
 from psqtraviscontainer import architecture
-from psqtraviscontainer import common_options
 from psqtraviscontainer import constants
 from psqtraviscontainer import container
 from psqtraviscontainer import directory
@@ -242,9 +241,7 @@ def _extract_distro_archive(distro_archive_file, distro_folder):
 
 def _fetch_distribution(container_root,  # pylint:disable=R0913
                         proot_distro,
-                        details,
-                        repositories_path,
-                        packages_path):
+                        details):
     """Lazy-initialize distribution and return it."""
     path_to_distro_folder = get_dir_for_distro(container_root,
                                                details)
@@ -281,36 +278,7 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
         # Download the distribution tarball in the distro dir
         _download_distro(details, path_to_distro_folder)
 
-    # Now set up packages in the distribution. If more packages need
-    # to be installed or the installed packages need to be updated then
-    # the build cache should be cleared.
-    linux_cont.install_packages(repositories_path, packages_path)
-
     return linux_cont
-
-
-def _parse_arguments(arguments=None):
-    """Return a parser context result."""
-    parser = common_options.get_parser("Create")
-    parser.add_argument("--repositories",
-                        type=str,
-                        help="""A file containing a list of repositories to """
-                             """add before installing packages. Special """
-                             """keywords will control the operation of this """
-                             """file: \n"""
-                             """{release}: The distribution release (eg, """
-                             """precise)\n"""
-                             """{ubuntu}: Ubuntu archive URL\n"""
-                             """{launchpad}: Launchpad PPA URL header (eg,"""
-                             """ppa.launchpad.net)\n""",
-                        default=None)
-    parser.add_argument("--packages",
-                        type=str,
-                        help="""A file containing a list of packages """
-                             """to install""",
-                        default=None)
-
-    return parser.parse_args(arguments)
 
 
 def container_for_directory(container_dir, distro_config):
@@ -339,7 +307,7 @@ def container_for_directory(container_dir, distro_config):
                           distro_config["pkgsys"])
 
 
-def create(container_dir, distro_config, arguments):
+def create(container_dir, distro_config):
     """Create a container using proot."""
     # First fetch a proot distribution if we don't already have one
     proot_distro = _fetch_proot_distribution(container_dir)
@@ -347,9 +315,7 @@ def create(container_dir, distro_config, arguments):
     # Now fetch the distribution tarball itself, if we specified one
     return _fetch_distribution(container_dir,
                                proot_distro,
-                               distro_config,
-                               arguments["repositories"],
-                               arguments["packages"])
+                               distro_config)
 
 
 def _info_with_arch_to_config(info, arch):
@@ -405,6 +371,9 @@ def match(info, arguments):
 
 def enumerate_all(info):
     """Enumerate all valid configurations for this DistroInfo."""
+    if platform.system() != "Linux":
+        return
+
     for arch in _valid_archs(info.kwargs["arch"]):  # suppress(PYC90)
         yield _info_with_arch_to_config(info, arch)
 

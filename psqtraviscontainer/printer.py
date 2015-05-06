@@ -12,7 +12,7 @@ def unicode_safe(text):
     """Print text to standard output, handle unicode."""
     # Don't trust non-file like replacements of sys.stdout, assume
     # that they can only handle ascii.
-    if sys.stdout.__class__ is not file or sys.stdout.isatty():
+    if sys.stdout.__class__ is not file or not sys.stdout.isatty():
         text = "".join([c for c in text if ord(c) < 128])
 
     sys.stdout.write(text)

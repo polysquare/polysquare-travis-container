@@ -325,6 +325,18 @@ def exec_for_returncode(*argv):
                                         **use_config)
 
 
+PLATFORM_PROGRAM_MAPPINGS = {
+    "Linux": {
+        "0": ["true"],
+        "1": ["false"]
+    },
+    "Darwin": {
+        "0": ["true"],
+        "1": ["false"]
+    }
+}
+
+
 class TestExecInContainer(TestCase):
 
     """A test case for executing things inside a container."""
@@ -333,22 +345,18 @@ class TestExecInContainer(TestCase):
         """Check that use.main() fails where there is no distro."""
         with run_create_default_container() as container_dir:
             with ExpectedException(RuntimeError):
-                run_use_container_on_dir(container_dir,
-                                         cmd=["python",
-                                              "-c",
-                                              "import sys; sys.exit(0)"])
+                cmd = PLATFORM_PROGRAM_MAPPINGS[platform.system()]["0"]
+                run_use_container_on_dir(container_dir, cmd=cmd)
 
     def test_exec_return_zero(self):
         """Check that use.main() returns true exit code of subprocess."""
-        self.assertEqual(exec_for_returncode("python",
-                                             "-c",
-                                             "import sys; sys.exit(0)"), 0)
+        cmd = PLATFORM_PROGRAM_MAPPINGS[platform.system()]["0"]
+        self.assertEqual(exec_for_returncode(*cmd), 0)
 
     def test_exec_return_one(self):
         """Check that use.main() returns false exit code of subprocess."""
-        self.assertEqual(exec_for_returncode("python",
-                                             "-c",
-                                             "import sys; sys.exit(1)"), 1)
+        cmd = PLATFORM_PROGRAM_MAPPINGS[platform.system()]["1"]
+        self.assertEqual(exec_for_returncode(*cmd), 1)
 
 ARCHITECTURE_LIBDIR_MAPPINGS = {
     "armhf": "arm-linux-gnueabihf",
@@ -397,10 +405,10 @@ class InstallationConfig(object):  # pylint:disable=R0903
 
 def _create_distro_test(test_name,  # pylint:disable=R0913
                         config,
-                        arch,
                         repos,
                         packages,
-                        test_files):
+                        test_files,
+                        **kwargs):
     """Create a TemplateDistroTest class."""
     class TemplateDistroTest(ContainerInspectionTestCase):
 
@@ -415,26 +423,28 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
         def setUp(self):  # suppress(N802)
             """Set up path to distro root."""
             super(TemplateDistroTest, self).setUp()
-            root = get_dir_for_distro(self.container_dir,
-                                      config)
-            self.path_to_distro_root = os.path.join(self.container_dir, root)
 
         @classmethod
         def setUpClass(cls):  # suppress(N802)
             """Create a container for all uses of this TemplateDistroTest."""
-            if platform.system() != "Linux":
-                return
-
             with InstallationConfig(packages, repos) as command_config:
-                cls.create_container(distro=config["distro"],
-                                     release=config["release"],
-                                     arch=arch,
-                                     repos=command_config.repos_path,
-                                     packages=command_config.packages_path)
+                keys = ("distro", "release")
+                kwargs.update({k: v for k, v in config.items() if k in keys})
+
+                cls.create_container(repos=command_config.repos_path,
+                                     packages=command_config.packages_path,
+                                     **kwargs)
 
         def test_distro_folder_exists(self):
             """Check that distro folder exists for ."""
-            self.assertThat(self.path_to_distro_root, DirExists())
+            if platform.system() == "Linux":
+                root = get_dir_for_distro(self.container_dir,
+                                          config)
+                self.assertThat(os.path.join(self.container_dir, root),
+                                DirExists())
+            elif platform.system() == "Darwin":
+                self.assertThat(os.path.join(self.container_dir, "bin"),
+                                DirExists())
 
         def test_has_package_installed(self):
             """Check that our testing package got installed.
@@ -443,15 +453,23 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
             was successfully added and the package was successfully installed
             using the native tool. That means that the proot "works".
             """
-            distro_arch = architecture.Alias.debian(arch)
-            archlib = ARCHITECTURE_LIBDIR_MAPPINGS[distro_arch]
+            format_kwargs = dict()
+
+            if platform.system() == "Linux":
+                root = get_dir_for_distro(self.container_dir,
+                                          config)
+                distro_arch = architecture.Alias.debian(kwargs["arch"])
+                archlib = ARCHITECTURE_LIBDIR_MAPPINGS[distro_arch]
+                format_kwargs["archlib"] = archlib
+            else:
+                root = self.container_dir
 
             # Match against a list of files. If none of the results are None,
             # then throw a list of mismatches.
             match_results = []
             for filename in test_files:
-                path_to_file = os.path.join(self.path_to_distro_root,
-                                            filename.format(archlib=archlib))
+                path_to_file = os.path.join(root,
+                                            filename.format(**format_kwargs))
                 result = FileExists().match(path_to_file)
                 if result:
                     match_results.append(result)
@@ -474,7 +492,10 @@ _DISTRO_INFO = {
     "Fedora": _DistroPackage(package="libaio",
                              repo=[],
                              files=["lib/libaio.so.1.0.1",
-                                    "lib64/libaio.so.1.0.1"])
+                                    "lib64/libaio.so.1.0.1"]),
+    "OSX": _DistroPackage(package="xz",
+                          repo=[],
+                          files=["bin/xz"])
 }
 
 
@@ -495,21 +516,23 @@ def get_distribution_tests():
                                 config[key][1:])
         name = "Test{0}".format(str(name_array))
 
+        distro = config["distro"]
+        repositories_to_add = _DISTRO_INFO[distro].repo
+        packages_to_install = [_DISTRO_INFO[distro].package]
+        files_to_test_for = _DISTRO_INFO[distro].files
+        kwargs = dict()
+
         try:
-            distro = config["distro"]
-            repositories_to_add = _DISTRO_INFO[distro].repo
-            packages_to_install = [_DISTRO_INFO[distro].package]
-            files_to_test_for = _DISTRO_INFO[distro].files
-            tests[name] = _create_distro_test(name,
-                                              config,
-                                              Alias.universal(config["arch"]),
-                                              repositories_to_add,
-                                              packages_to_install,
-                                              files_to_test_for)
+            kwargs["arch"] = Alias.universal(config["arch"])
         except KeyError:  # suppress(pointless-except)
-            # We don't know about this distribution yet, so don't run
-            # any tests on it.
             pass
+
+        tests[name] = _create_distro_test(name,
+                                          config,
+                                          repositories_to_add,
+                                          packages_to_install,
+                                          files_to_test_for,
+                                          **kwargs)
 
     return tests
 

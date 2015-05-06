@@ -21,8 +21,10 @@ def get_parser(action):
     distributions = set()
 
     for config in distro.available_distributions():
-        distributions.add(config["distro"])
-        architectures.add(architecture.Alias.universal(config["arch"]))
+        if "distro" in config:
+            distributions.add(config["distro"])
+        if "arch" in config:
+            architectures.add(architecture.Alias.universal(config["arch"]))
 
     description = """{0} a CI container""".format(action)
     parser = configargparse.ArgumentParser(description=description)

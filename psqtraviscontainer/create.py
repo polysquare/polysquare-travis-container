@@ -31,10 +31,10 @@ def _print_distribution_details(details):
 
     # Maps keys in configuration to a pretty-printable name.
     distro_pretty_print_map = {
-        "distro": lambda(v): """Distribution Name: """ + _y_v(v),
-        "release": lambda(v): """Release: """ + _y_v(v),
-        "arch": lambda(v): """Architecture: """ + _y_v(Alias.universal(v)),
-        "pkgsys": lambda(v): """Package System: """ + _y_v(v.__name__),
+        "distro": lambda v: """Distribution Name: """ + _y_v(v),
+        "release": lambda v: """Release: """ + _y_v(v),
+        "arch": lambda v: """Architecture: """ + _y_v(Alias.universal(v)),
+        "pkgsys": lambda v: """Package System: """ + _y_v(v.__name__),
     }
 
     output = bytearray()
@@ -87,9 +87,13 @@ def main(arguments=None):
     selected_distro = distro.lookup(vars(result))
 
     _print_distribution_details(selected_distro)
-    selected_distro["info"].create_func(container_dir,
-                                        selected_distro,
-                                        vars(result))
+    container = selected_distro["info"].create_func(container_dir,
+                                                    selected_distro)
+
+    # Now set up packages in the distribution. If more packages need
+    # to be installed or the installed packages need to be updated then
+    # the build cache should be cleared.
+    container.install_packages(result.repositories, result.packages)
 
     printer.unicode_safe(colored(u"""\N{check mark}  """
                                  u"""Container has been set up """

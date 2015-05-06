@@ -7,9 +7,11 @@
 
 import abc
 
-import os
+import os  # suppress(PYC50)
 
 import re
+
+import shutil
 
 import subprocess
 
@@ -17,7 +19,27 @@ import sys
 
 from collections import namedtuple
 
+from contextlib import contextmanager
+
+import shutilwhich  # suppress(F401,PYC50,unused-import)
+
 import six
+
+
+@contextmanager
+def updated_environ(prepend):
+    """Context with prepend added to os.environ."""
+    env = os.environ.copy()
+    for key, value in prepend.items():
+        env[key] = "{0}:{1}".format(value, env.get(key, ""))
+
+    old_environ = os.environ
+    os.environ = env
+
+    try:
+        yield env
+    finally:
+        os.environ = old_environ
 
 
 class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
@@ -69,13 +91,18 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
     def execute(self, argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
         """Execute the process and arguments indicated by argv in container."""
         argv, modify_env = self._subprocess_popen_arguments(argv)
-        env = os.environ.copy()
-        env.update(modify_env)
-        executed_cmd = subprocess.Popen(argv,
-                                        stdout=stdout,
-                                        stderr=stderr,
-                                        env=env,
-                                        universal_newlines=True)
+
+        with updated_environ(modify_env) as env:
+            argv[0] = shutil.which(argv[0])
+
+            assert argv[0] is not None
+
+            executed_cmd = subprocess.Popen(argv,
+                                            stdout=stdout,
+                                            stderr=stderr,
+                                            env=env,
+                                            universal_newlines=True)
+
         stdout_data, stderr_data = executed_cmd.communicate()
 
         return (executed_cmd.returncode, stdout_data, stderr_data)
