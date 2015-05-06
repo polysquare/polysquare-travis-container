@@ -34,6 +34,7 @@ prepended
 proot
 psq
 psqtraviscontainer
+pychecker
 pycurl
 PyPI
 pypy

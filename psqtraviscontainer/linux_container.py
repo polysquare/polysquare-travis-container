@@ -17,6 +17,7 @@ import sys
 
 import tarfile
 
+from collections import defaultdict
 from collections import namedtuple
 
 from contextlib import closing
@@ -43,6 +44,7 @@ _QEMU_URL_BASE = ("http://download.opensuse.org/repositories"
                   "qemu-user-mode_1.6.1-1_{arch}.deb")
 
 
+DistroInfo = distro.DistroInfo
 DistroConfig = distro.DistroConfig
 ProotDistribution = namedtuple("ProotDistribution", "proot qemu")
 
@@ -67,10 +69,11 @@ def proot_distro_from_container(container_dir):
                              qemu=_get_qemu_binary)
 
 
-def get_dir_for_distro(container_dir, config, arch):
+def get_dir_for_distro(container_dir, config):
     """Get the distro dir in a container_dir for a DistroConfig."""
-    distro_folder_name_template = (os.path.basename(config.kwargs["url"]) +
-                                   ".root")
+    arch = config["arch"]
+    url = config["url"]
+    distro_folder_name_template = (os.path.basename(url) + ".root")
     distro_folder_name = distro_folder_name_template.format(arch=arch)
     return os.path.realpath(os.path.join(container_dir, distro_folder_name))
 
@@ -215,19 +218,20 @@ def _fetch_proot_distribution(container_root):
     return proot_distro_from_container(container_root)
 
 
-def _print_distribution_details(details, distro_arch):
+def _print_distribution_details(details):
     """Print distribution details."""
-    pkgsysname = details.pkgsys.__name__
+    distro_name = details["distro"]
+    pkgsysname = details["pkgsys"].__name__
+    release = details["release"]
+    arch = details["arch"]
 
     output = (colored("""\nConfigured Distribution:\n""",
                       "white",
                       attrs=["underline"]) +
-              """ - Distribution Name: {0}\n""".format(colored(details.type,
+              """ - Distribution Name: {0}\n""".format(colored(distro_name,
                                                                "yellow")) +
-              """ - Release: {0}\n""".format(colored(details.kwargs["release"],
-                                                     "yellow")) +
-              """ - Architecture: {0}\n""".format(colored(distro_arch,
-                                                          "yellow")) +
+              """ - Release: {0}\n""".format(colored(release, "yellow")) +
+              """ - Architecture: {0}\n""".format(colored(arch, "yellow")) +
               """ - Package System: {0}\n""".format(colored(pkgsysname,
                                                             "yellow")) +
               "\n")
@@ -266,17 +270,16 @@ def _extract_distro_archive(distro_archive_file, distro_folder):
 def _fetch_distribution(container_root,  # pylint:disable=R0913
                         proot_distro,
                         details,
-                        distro_arch,
                         repositories_path,
                         packages_path):
     """Lazy-initialize distribution and return it."""
     path_to_distro_folder = get_dir_for_distro(container_root,
-                                               details,
-                                               distro_arch)
+                                               details)
 
     def _download_distro(details, path_to_distro_folder):
         """Download distribution and untar it in container root."""
-        download_url = details.kwargs["url"].format(arch=distro_arch)
+        distro_arch = details["arch"]
+        download_url = details["url"].format(arch=distro_arch)
         with tempdir.TempDir() as download_dir:
             with directory.Navigation(download_dir):
                 with TemporarilyDownloadedFile(download_url) as archive_file:
@@ -287,18 +290,18 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
     # path to the distro folder exists or we've downloaded a distro into it
     linux_cont = LinuxContainer(proot_distro,
                                 path_to_distro_folder,
-                                details.kwargs["release"],
-                                distro_arch,
-                                details.pkgsys)
+                                details["release"],
+                                details["arch"],
+                                details["pkgsys"])
 
     try:
         os.stat(path_to_distro_folder)
         _print_unicode_safe(colored(u"""\N{check mark}  """
                                     u"""Using pre-existing folder for """
                                     u"""distro {0} {1} ({2})\n"""
-                                    """""".format(details.type,
-                                                  details.kwargs["release"],
-                                                  distro_arch),
+                                    """""".format(details["distro"],
+                                                  details["release"],
+                                                  details["arch"]),
                                     "green",
                                     attrs=["bold"]))
     except OSError:
@@ -352,11 +355,10 @@ def container_for_directory(container_dir, result):
     Also take into account arguments in result to look up the the actual
     directory for this distro.
     """
-    distro_config, arch = distro.lookup(result.distro, vars(result))
+    distro_config = distro.lookup(vars(result))
 
     path_to_distro_folder = get_dir_for_distro(container_dir,
-                                               distro_config,
-                                               arch)
+                                               distro_config)
 
     required_entities = [
         constants.have_proot_distribution(container_dir),
@@ -370,9 +372,9 @@ def container_for_directory(container_dir, result):
 
     return LinuxContainer(proot_distribution,
                           path_to_distro_folder,
-                          distro_config.kwargs["release"],
-                          arch,
-                          distro_config.pkgsys)
+                          distro_config["release"],
+                          distro_config["arch"],
+                          distro_config["pkgsys"])
 
 
 def create(container_dir, arguments):
@@ -382,89 +384,126 @@ def create(container_dir, arguments):
 
     # Now fetch the distribution tarball itself, if we specified one
     if arguments["distro"]:
-        distro_config, arch = distro.lookup(arguments["distro"], arguments)
+        distro_config = distro.lookup(arguments)
 
-        _print_distribution_details(distro_config, arch)
+        _print_distribution_details(distro_config)
         return _fetch_distribution(container_dir,
                                    proot_distro,
                                    distro_config,
-                                   arch,
                                    arguments["repositories"],
                                    arguments["packages"])
 
 
-def match(distro_config, arguments):
-    """Check if distro_config_kwargs matches arguments."""
-    distro_config_kwargs = distro_config.kwargs
+def _info_with_arch_to_config(info, arch):
+    """Convert selected architecture for DistroInfo into DistroConfig."""
+    config = info.kwargs.copy()
 
-    if platform.system() == "Linux":
-        if arguments["release"] == distro_config_kwargs["release"]:
-            converted = distro_config_kwargs["archfetch"](arguments["arch"])
-            if converted in distro_config_kwargs["arch"]:
-                return (distro_config, converted)
+    del config["arch"]
+    del config["archfetch"]
+
+    config["arch"] = arch
+
+    return config
+
+
+def _valid_archs(archs):
+    """Return valid archs to emulate from archs.
+
+    64 bit architectures can't be emulated on a 32 bit system, so remove
+    them form the list of valid architectures.
+    """
+    blacklist = defaultdict(lambda: None)
+    blacklist["x86"] = "x86_64"
+    blacklist["x86_64"] = "x86"
+
+    arch_alias = architecture.Alias.universal
+    machine = arch_alias(platform.machine())
+
+    return [a for a in archs if arch_alias(a) != blacklist[machine]]
+
+
+def match(info, arguments):
+    """Check if info matches arguments."""
+    if platform.system() != "Linux":
+        return None
+
+    if arguments.get("distro", None) != info.kwargs["distro"]:
+        return None
+
+    distro_release = info.kwargs["release"]
+
+    # pychecker thinks that a list comprehension as a return value is
+    # always None.
+    distro_archs = _valid_archs(info.kwargs["arch"])  # suppress(PYC90)
+    distro_archfetch = info.kwargs["archfetch"]
+
+    if arguments.get("release", None) == distro_release:
+        converted = distro_archfetch(arguments.get("arch", None))
+        if converted in distro_archs:
+            return _info_with_arch_to_config(info, converted)
 
     return None
 
+
+def enumerate_all(info):
+    """Enumerate all valid configurations for this DistroInfo."""
+    for arch in _valid_archs(info.kwargs["arch"]):  # suppress(PYC90)
+        yield _info_with_arch_to_config(info, arch)
+
+
+class LinuxInfo(DistroInfo):
+
+    """Linux-specific specialization of DistroInfo."""
+
+    PACKAGE_SYSTEMS = {
+        "Ubuntu": package_system.Dpkg,
+        "Debian": package_system.Dpkg,
+        "Fedora": package_system.Yum
+    }
+
+    def __new__(cls, distro_type, **kwargs):
+        """Create DistroInfo namedtuple using provided arguments."""
+        kwargs.update({
+            "distro": distro_type,
+            "pkgsys": LinuxInfo.PACKAGE_SYSTEMS[distro_type]
+        })
+
+        return DistroInfo.__new__(cls,
+                                  constructor_func=create,
+                                  match_func=match,
+                                  enumerate_func=enumerate_all,
+                                  kwargs=kwargs)
+
 DISTRIBUTIONS = [  # suppress(unused-variable)
-    DistroConfig(type="Ubuntu",
-                 pkgsys=package_system.Dpkg,
-                 constructor_func=create,
-                 match_func=match,
-                 kwargs={
-                     "release": "precise",
-                     "url": ("http://cdimage.ubuntu.com/ubuntu-core/releases/"
-                             "precise/release/"
-                             "ubuntu-core-12.04.5-core-{arch}.tar.gz"),
-                     "arch": ["i386", "amd64", "armhf"],
-                     "archfetch": architecture.Alias.debian
-                 }),
-    DistroConfig(type="Ubuntu",
-                 pkgsys=package_system.Dpkg,
-                 constructor_func=create,
-                 match_func=match,
-                 kwargs={
-                     "release": "trusty",
-                     "url": ("http://cdimage.ubuntu.com/ubuntu-core/releases/"
-                             "trusty/release/"
-                             "ubuntu-core-14.04.1-core-{arch}.tar.gz"),
-                     "arch": ["i386", "amd64", "armhf", "powerpc"],
-                     "archfetch": architecture.Alias.debian
-                 }),
-    DistroConfig(type="Debian",
-                 pkgsys=package_system.Dpkg,
-                 constructor_func=create,
-                 match_func=match,
-                 kwargs={
-                     "release": "wheezy",
-                     "url": ("http://download.openvz.org/"
-                             "template/precreated/"
-                             "debian-7.0-{arch}-minimal.tar.gz"),
-                     "arch": ["x86", "x86_64"],
-                     "archfetch": architecture.Alias.universal
-                 }),
-    DistroConfig(type="Debian",
-                 pkgsys=package_system.Dpkg,
-                 constructor_func=create,
-                 match_func=match,
-                 kwargs={
-                     "release": "squeeze",
-                     "url": ("http://download.openvz.org/"
-                             "template/precreated/"
-                             "debian-6.0-{arch}-minimal.tar.gz"),
-                     "arch": ["x86", "x86_64"],
-                     "archfetch": architecture.Alias.universal
-                 }),
-    DistroConfig(type="Fedora",
-                 pkgsys=package_system.Yum,
-                 constructor_func=create,
-                 match_func=match,
-                 kwargs={
-                     "release": "20",
-                     "url": ("http://download.openvz.org/"
-                             "template/precreated/"
-                             "fedora-20-{arch}.tar.gz"),
-                     "arch": ["x86", "x86_64"],
-                     # suppress(PYC50)
-                     "archfetch": architecture.Alias.universal
-                 })
+    LinuxInfo("Ubuntu",
+              release="precise",
+              url=("http://cdimage.ubuntu.com/ubuntu-core/releases/"
+                   "precise/release/ubuntu-core-12.04.5-core-{arch}.tar.gz"),
+              arch=["i386", "amd64", "armhf"],
+              archfetch=architecture.Alias.debian),
+    LinuxInfo("Ubuntu",
+              release="trusty",
+              url=("http://cdimage.ubuntu.com/ubuntu-core/releases/"
+                   "trusty/release/ubuntu-core-14.04.1-core-{arch}.tar.gz"),
+              arch=["i386", "amd64", "armhf", "powerpc"],
+              archfetch=architecture.Alias.debian),
+    LinuxInfo("Debian",
+              release="wheezy",
+              url=("http://download.openvz.org/"
+                   "template/precreated/debian-7.0-{arch}-minimal.tar.gz"),
+              arch=["x86", "x86_64"],
+              archfetch=architecture.Alias.universal),
+    LinuxInfo("Debian",
+              release="squeeze",
+              url=("http://download.openvz.org/"
+                   "template/precreated/debian-6.0-{arch}-minimal.tar.gz"),
+              arch=["x86", "x86_64"],
+              archfetch=architecture.Alias.universal),
+    LinuxInfo("Fedora",
+              release="20",
+              url=("http://download.openvz.org/"
+                   "template/precreated/fedora-20-{arch}.tar.gz"),
+              arch=["x86", "x86_64"],
+              # suppress(PYC50)
+              archfetch=architecture.Alias.universal)
 ]

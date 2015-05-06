@@ -5,30 +5,39 @@
 # See /LICENCE.md for Copyright information
 """Various distribution configurations are stored here."""
 
+import itertools
+
 from collections import namedtuple
 
 
-DistroConfig = namedtuple("DistroConfig",
-                          "type constructor_func match_func kwargs pkgsys")
+DistroConfig = dict
+DistroInfo = namedtuple("DistroInfo",
+                        "constructor_func match_func enumerate_func kwargs")
+
+
+def _distribution_information():
+    """Return generator of DistroInfo."""
+    from psqtraviscontainer import linux_container
+
+    return itertools.chain(linux_container.DISTRIBUTIONS)
 
 
 def available_distributions():
     """Return list of available distributions."""
-    from psqtraviscontainer import linux_container
+    for info in _distribution_information():
+        for config in info.enumerate_func(info):
+            yield config
 
-    return linux_container.DISTRIBUTIONS
 
-
-def lookup(distro_type, arguments):
+def lookup(arguments):
     """Look up DistroConfig by matching against its name and arguments."""
-    matched_distribution = (None, None)
+    matched_distribution = None
 
-    for distribution in available_distributions():
-        if distribution.type == distro_type:
-            matched_distribution = distribution.match_func(distribution,
-                                                           arguments)
-            if matched_distribution:
-                return matched_distribution
+    for distribution in _distribution_information():
+        matched_distribution = distribution.match_func(distribution,
+                                                       arguments)
+        if matched_distribution:
+            return matched_distribution
 
-    raise RuntimeError("Couldn't find matching distribution "
-                       "{0} ({1})".format(distro_type, repr(arguments)))
+    raise RuntimeError("""Couldn't find matching distribution """
+                       """({0})""".format(repr(arguments)))

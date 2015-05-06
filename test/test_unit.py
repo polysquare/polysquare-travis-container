@@ -69,4 +69,4 @@ class TestDistroLookup(TestCase):  # suppress(R0903)
     def test_error_lookup_bad_distro(self):  # suppress(no-self-use)
         """Check that looking up a non-existent distro throws."""
         with ExpectedException(RuntimeError):
-            distro.lookup("noexist", {})
+            distro.lookup({"distro": "noexist"})

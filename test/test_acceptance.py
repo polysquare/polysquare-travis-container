@@ -291,17 +291,15 @@ def exec_for_retuncode(cmd):
 
     Check that use.main() returns exit code of subprocess.
     """
-    distro_config = available_distributions()[0]
-    config = {
-        "distro": distro_config.type,
-        "release": distro_config.kwargs["release"]
-    }
+    distro_config = list(available_distributions())[0]
+    arguments = ("distro", "release")
+    config = {k: v for k, v in distro_config.items() if k in arguments}
 
     with run_create_container(**config) as cont:
-        kwargs = config
-        kwargs["cmd"] = cmd
+        use_config = config.copy()
+        use_config["cmd"] = cmd
         return run_use_container_on_dir(cont,
-                                        **kwargs)
+                                        **use_config)
 
 
 class TestExecInContainer(test_case_requiring_platform("Linux")):
@@ -312,10 +310,11 @@ class TestExecInContainer(test_case_requiring_platform("Linux")):
         """Check that use.main() fails where there is no distro."""
         with run_create_container() as container_dir:
             with ExpectedException(RuntimeError):
-                distro_config = available_distributions()[0]
-                release = distro_config.kwargs["release"]
+                config = list(available_distributions())[0]
+                release = config["release"]
+                distro_name = config["distro"]
                 run_use_container_on_dir(container_dir,
-                                         distro=distro_config.type,
+                                         distro=distro_name,
                                          release=release,
                                          cmd="true")
 
@@ -393,8 +392,7 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
             """Set up path to distro root."""
             super(TemplateDistroTest, self).setUp()
             root = get_dir_for_distro(self.container_dir,
-                                      config,
-                                      config.kwargs["archfetch"](arch))
+                                      config)
             self.path_to_distro_root = os.path.join(self.container_dir, root)
 
         @classmethod
@@ -404,8 +402,8 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
                 return
 
             with InstallationConfig(packages, repos) as command_config:
-                cls.create_container(distro=config.type,
-                                     release=config.kwargs["release"],
+                cls.create_container(distro=config["distro"],
+                                     release=config["release"],
                                      arch=arch,
                                      repos=command_config.repos_path,
                                      packages=command_config.packages_path)
@@ -456,40 +454,38 @@ _DISTRO_INFO = {
 }
 
 
-def _blacklisted_arch():
-    """Return universal formatted blacklisted arch for current arch."""
-    blacklist = {
-        "x86": "x86_64",
-        "x86_64": "x86"
-    }
-
-    try:
-        return blacklist[Alias.universal(platform.machine())]
-    except KeyError:
-        return None
-
-
 def get_distribution_tests():
     """Fetch distribution tests as dictionary."""
     tests = {}
 
     for config in available_distributions():
-        for distro_arch in config.kwargs["arch"]:
-            # Blacklist 64-bit ABIs that don't emulate properly
-            if Alias.universal(distro_arch) != _blacklisted_arch():
-                name = "Test{0}{1}{2}Distro".format(config.type,
-                                                    config.kwargs["release"],
-                                                    distro_arch)
+        config = config.copy()
+        name_array = bytearray()
+        for key in sorted(list(config.keys())):
+            if key in ("pkgsys", "url"):
+                continue
 
-                repositories_to_add = _DISTRO_INFO[config.type].repo
-                packages_to_install = [_DISTRO_INFO[config.type].package]
-                files_to_test_for = _DISTRO_INFO[config.type].files
-                tests[name] = _create_distro_test(name,
-                                                  config,
-                                                  Alias.universal(distro_arch),
-                                                  repositories_to_add,
-                                                  packages_to_install,
-                                                  files_to_test_for)
+            name_array += bytes(key[0].upper() +
+                                key[1:] +
+                                config[key][0].upper() +
+                                config[key][1:])
+        name = "Test{0}".format(str(name_array))
+
+        try:
+            distro = config["distro"]
+            repositories_to_add = _DISTRO_INFO[distro].repo
+            packages_to_install = [_DISTRO_INFO[distro].package]
+            files_to_test_for = _DISTRO_INFO[distro].files
+            tests[name] = _create_distro_test(name,
+                                              config,
+                                              Alias.universal(config["arch"]),
+                                              repositories_to_add,
+                                              packages_to_install,
+                                              files_to_test_for)
+        except KeyError:  # suppress(pointless-except)
+            # We don't know about this distribution yet, so don't run
+            # any tests on it.
+            pass
 
     return tests
 
