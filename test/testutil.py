@@ -33,7 +33,8 @@ def download_file_cached(url, filename=None):
                 raise error
 
         dest_filename = os.path.realpath(filename or os.path.basename(url))
-        base64_filename = os.path.join(cache_dir, b64(url.encode()))
+        base64_filename = os.path.join(cache_dir,
+                                       b64(url.encode()).decode("ascii"))
 
         if os.path.exists(base64_filename):
             sys.stdout.write(colored("""-> Downloading {0} """

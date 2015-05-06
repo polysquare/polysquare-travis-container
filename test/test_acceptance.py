@@ -510,11 +510,11 @@ def get_distribution_tests():
             if key in ("info", "pkgsys", "url"):
                 continue
 
-            name_array += bytes(key[0].upper() +
-                                key[1:] +
-                                config[key][0].upper() +
-                                config[key][1:])
-        name = "Test{0}".format(str(name_array))
+            name_array += bytes(key[0].upper().encode() +
+                                key[1:].encode() +
+                                config[key][0].upper().encode() +
+                                config[key][1:].encode())
+        name = "Test{0}".format(name_array.decode("ascii"))
 
         distro = config["distro"]
         repositories_to_add = _DISTRO_INFO[distro].repo

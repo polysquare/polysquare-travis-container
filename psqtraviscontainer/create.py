@@ -40,13 +40,14 @@ def _print_distribution_details(details):
     output = bytearray()
     output += colored("""\nConfigured Distribution:\n""",
                       "white",
-                      attrs=["underline"])
+                      attrs=["underline"]).encode()
 
     for key, value in details.items():
         if key in distro_pretty_print_map:
-            output += " - {0}\n".format(distro_pretty_print_map[key](value))
+            line = " - {0}\n".format(distro_pretty_print_map[key](value))
+            output += line.encode()
 
-    output += "\n"
+    output += "\n".encode()
 
     printer.unicode_safe(str(output))
 
