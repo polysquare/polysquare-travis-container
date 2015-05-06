@@ -12,7 +12,11 @@ from collections import namedtuple
 
 DistroConfig = dict
 DistroInfo = namedtuple("DistroInfo",
-                        "constructor_func match_func enumerate_func kwargs")
+                        "create_func "
+                        "get_func "
+                        "match_func "
+                        "enumerate_func "
+                        "kwargs")
 
 
 def _distribution_information():
@@ -26,6 +30,8 @@ def available_distributions():
     """Return list of available distributions."""
     for info in _distribution_information():
         for config in info.enumerate_func(info):
+            config["info"] = info
+            config = config.copy()
             yield config
 
 
@@ -37,6 +43,7 @@ def lookup(arguments):
         matched_distribution = distribution.match_func(distribution,
                                                        arguments)
         if matched_distribution:
+            matched_distribution["info"] = distribution
             return matched_distribution
 
     raise RuntimeError("""Couldn't find matching distribution """

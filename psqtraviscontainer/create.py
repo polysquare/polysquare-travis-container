@@ -14,20 +14,41 @@ requests redirected to the proot and believe that they are running as uid 0
 
 import os
 
-import platform
-
-import sys
-
 from psqtraviscontainer import common_options
-from psqtraviscontainer import linux_container
+from psqtraviscontainer import distro
+from psqtraviscontainer import printer
+
+from psqtraviscontainer.architecture import Alias
 
 from termcolor import colored
 
 
-def _print_unicode_safe(text):
-    """Print text to standard output, handle unicode."""
-    text.encode(sys.getdefaultencoding(), "replace").decode("utf-8")
-    sys.stdout.write(text)
+def _print_distribution_details(details):
+    """Print distribution details."""
+    def _y_v(value):
+        """Print value in distribution details."""
+        return colored(value, "yellow")
+
+    # Maps keys in configuration to a pretty-printable name.
+    distro_pretty_print_map = {
+        "distro": lambda(v): """Distribution Name: """ + _y_v(v),
+        "release": lambda(v): """Release: """ + _y_v(v),
+        "arch": lambda(v): """Architecture: """ + _y_v(Alias.universal(v)),
+        "pkgsys": lambda(v): """Package System: """ + _y_v(v.__name__),
+    }
+
+    output = bytearray()
+    output += colored("""\nConfigured Distribution:\n""",
+                      "white",
+                      attrs=["underline"])
+
+    for key, value in details.items():
+        if key in distro_pretty_print_map:
+            output += " - {0}\n".format(distro_pretty_print_map[key](value))
+
+    output += "\n"
+
+    printer.unicode_safe(str(output))
 
 
 def _parse_arguments(arguments=None):
@@ -61,16 +82,20 @@ def main(arguments=None):
     and sets up our proot.
     """
     result = _parse_arguments(arguments=arguments)
+    container_dir = os.path.realpath(result.containerdir)
 
-    if platform.system() == "Linux":
-        linux_container.create(os.path.realpath(result.containerdir),
-                               vars(result))
+    selected_distro = distro.lookup(vars(result))
 
-    _print_unicode_safe(colored(u"""\N{check mark}  """
-                                u"""Container has been set up """
-                                u"""in {0}\n""".format(result.containerdir),
-                                "green",
-                                attrs=["bold"]))
+    _print_distribution_details(selected_distro)
+    selected_distro["info"].create_func(container_dir,
+                                        selected_distro,
+                                        vars(result))
+
+    printer.unicode_safe(colored(u"""\N{check mark}  """
+                                 u"""Container has been set up """
+                                 u"""in {0}\n""".format(result.containerdir),
+                                 "green",
+                                 attrs=["bold"]))
 
 if __name__ == "__main__":
     main()

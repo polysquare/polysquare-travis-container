@@ -121,9 +121,25 @@ def run_create_container(**kwargs):
     return temp_dir
 
 
+def default_create_container_arguments():
+    """Get set of arguments which would create first known distribution."""
+    distro_config = list(available_distributions())[0]
+    arguments = ("distro", "release")
+    config = {k: v for k, v in distro_config.items() if k in arguments}
+    return config
+
+
+def run_create_default_container():
+    """Run main() and return container for first known distribution."""
+    return run_create_container(**(default_create_container_arguments()))
+
+
 def run_use_container_on_dir(directory, **kwargs):
     """Run main() from psqtraviscontainer/use.py and return status code."""
-    arguments = [directory] + _convert_to_switch_args(kwargs)
+    cmd = kwargs["cmd"]
+    del kwargs["cmd"]
+
+    arguments = [directory] + _convert_to_switch_args(kwargs) + ["--"] + cmd
 
     return use.main(arguments=arguments)
 
@@ -149,7 +165,7 @@ class TestCreateProot(test_case_requiring_platform("Linux")):
 
     def test_create_proot_distro(self):
         """Check that we create a proot distro."""
-        with run_create_container() as container:
+        with run_create_default_container() as container:
             self.assertThat(have_proot_distribution(container),
                             FileExists())
 
@@ -160,12 +176,13 @@ class TestCreateProot(test_case_requiring_platform("Linux")):
         make sure that across two runs they are actual. If they were,
         then no re-downloading took place.
         """
-        with run_create_container() as container:
+        with run_create_default_container() as container:
             path_to_proot_stamp = have_proot_distribution(container)
 
             first_timestamp = os.stat(path_to_proot_stamp).st_mtime
 
-            run_create_container_on_dir(container)
+            config = default_create_container_arguments()
+            run_create_container_on_dir(container, **config)
 
             second_timestamp = os.stat(path_to_proot_stamp).st_mtime
 
@@ -182,10 +199,12 @@ def cached_downloads():
     psqtraviscontainer.download.download_file = download_file_cached
 
     original_stdout = sys.stdout
-    sys.stdout = six.StringIO()
-
     original_stderr = sys.stderr
-    sys.stderr = six.StringIO()
+
+    if not os.environ.get("_POLYSQUARE_TRAVIS_CONTAINER_TEST_SHOW_OUTPUT",
+                          None):
+        sys.stdout = six.StringIO()
+        sys.stderr = six.StringIO()
 
     try:
         yield
@@ -195,7 +214,7 @@ def cached_downloads():
         sys.stderr = original_stderr
 
 
-class ContainerInspectionTestCase(test_case_requiring_platform("Linux")):
+class ContainerInspectionTestCase(TestCase):
 
     """TestCase where container persists until all tests have completed.
 
@@ -226,8 +245,8 @@ class ContainerInspectionTestCase(test_case_requiring_platform("Linux")):
     @classmethod
     def setUpClass(cls):  # suppress(N802)
         """Set up container for all tests in this test case."""
-        if platform.system() == "Linux":
-            cls.create_container()
+        config = default_create_container_arguments()
+        cls.create_container(**config)
 
     @classmethod
     def tearDownClass(cls):  # suppress(N802)
@@ -249,6 +268,13 @@ QEMU_ARCHITECTURES = [
 class TestProotDistribution(ContainerInspectionTestCase):
 
     """Tests to inspect a proot distribution itself."""
+
+    def setUp(self):   # suppress(N802)
+        """Set up TestProotDistribution."""
+        if platform.system() != "Linux":
+            self.skipTest("""proot is only available on linux""")
+
+        super(TestProotDistribution, self).setUp()
 
     def test_has_proot_dir(self):
         """Check that we have a proot directory in our distribution."""
@@ -286,45 +312,43 @@ class TestProotDistribution(ContainerInspectionTestCase):
         self.assertTrue(stat_result.st_mode & executable_mask != 0)
 
 
-def exec_for_retuncode(cmd):
+def exec_for_returncode(*argv):
     """Execute command for its return code.
 
     Check that use.main() returns exit code of subprocess.
     """
-    distro_config = list(available_distributions())[0]
-    arguments = ("distro", "release")
-    config = {k: v for k, v in distro_config.items() if k in arguments}
-
+    config = default_create_container_arguments()
     with run_create_container(**config) as cont:
         use_config = config.copy()
-        use_config["cmd"] = cmd
+        use_config["cmd"] = list(argv)
         return run_use_container_on_dir(cont,
                                         **use_config)
 
 
-class TestExecInContainer(test_case_requiring_platform("Linux")):
+class TestExecInContainer(TestCase):
 
     """A test case for executing things inside a container."""
 
     def test_exec_fail_no_distro(self):  # suppress(no-self-use)
         """Check that use.main() fails where there is no distro."""
-        with run_create_container() as container_dir:
+        with run_create_default_container() as container_dir:
             with ExpectedException(RuntimeError):
-                config = list(available_distributions())[0]
-                release = config["release"]
-                distro_name = config["distro"]
                 run_use_container_on_dir(container_dir,
-                                         distro=distro_name,
-                                         release=release,
-                                         cmd="true")
+                                         cmd=["python",
+                                              "-c",
+                                              "import sys; sys.exit(0)"])
 
     def test_exec_return_zero(self):
         """Check that use.main() returns true exit code of subprocess."""
-        self.assertEqual(exec_for_retuncode("true"), 0)
+        self.assertEqual(exec_for_returncode("python",
+                                             "-c",
+                                             "import sys; sys.exit(0)"), 0)
 
     def test_exec_return_one(self):
         """Check that use.main() returns false exit code of subprocess."""
-        self.assertEqual(exec_for_retuncode("false"), 1)
+        self.assertEqual(exec_for_returncode("python",
+                                             "-c",
+                                             "import sys; sys.exit(1)"), 1)
 
 ARCHITECTURE_LIBDIR_MAPPINGS = {
     "armhf": "arm-linux-gnueabihf",
@@ -462,7 +486,7 @@ def get_distribution_tests():
         config = config.copy()
         name_array = bytearray()
         for key in sorted(list(config.keys())):
-            if key in ("pkgsys", "url"):
+            if key in ("info", "pkgsys", "url"):
                 continue
 
             name_array += bytes(key[0].upper() +

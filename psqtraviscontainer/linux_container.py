@@ -13,8 +13,6 @@ import shutil
 
 import stat
 
-import sys
-
 import tarfile
 
 from collections import defaultdict
@@ -31,6 +29,8 @@ from psqtraviscontainer import container
 from psqtraviscontainer import directory
 from psqtraviscontainer import distro
 from psqtraviscontainer import package_system
+from psqtraviscontainer import printer
+from psqtraviscontainer import util
 
 from psqtraviscontainer.download import TemporarilyDownloadedFile
 
@@ -123,12 +123,6 @@ class LinuxContainer(container.AbstractContainer):
         return self._pkgsys
 
 
-def _print_unicode_safe(text):
-    """Print text to standard output, handle unicode."""
-    text.encode(sys.getdefaultencoding(), "replace").decode("utf-8")
-    sys.stdout.write(text)
-
-
 def _extract_deb_data(archive, tmp_dir):
     """Extract archive to tmp_dir."""
     with closing(archive.getmember("data.tar.gz")) as member:
@@ -168,10 +162,10 @@ def _fetch_proot_distribution(container_root):
             # cause tons of pollution
             qemu_tmp = os.path.join(path_to_proot_dir, "_qemu_tmp")
             with directory.Navigation(qemu_tmp):
-                _print_unicode_safe(colored(("""-> Extracting {0}\n"""
+                printer.unicode_safe(colored(("""-> Extracting {0}\n"""
                                              """""").format(qemu_deb.path()),
-                                            "magenta",
-                                            attrs=["bold"]))
+                                             "magenta",
+                                             attrs=["bold"]))
                 archive = arfile.ArFile(qemu_deb.path())
                 _extract_deb_data(archive, qemu_tmp)
 
@@ -185,17 +179,17 @@ def _fetch_proot_distribution(container_root):
 
     try:
         os.stat(path_to_proot_check)
-        _print_unicode_safe(colored(u"""-> """
-                                    """Using pre-existing proot """
-                                    """distribution\n""",
-                                    "green",
-                                    attrs=["bold"]))
+        printer.unicode_safe(colored(u"""-> """
+                                     """Using pre-existing proot """
+                                     """distribution\n""",
+                                     "green",
+                                     attrs=["bold"]))
 
     except OSError:
-        _print_unicode_safe(colored(("""Creating distribution of proot """
-                                     """in {0}\n""").format(container_root),
-                                    "yellow",
-                                    attrs=["bold"]))
+        printer.unicode_safe(colored(("""Creating distribution of proot """
+                                      """in {0}\n""").format(container_root),
+                                     "yellow",
+                                     attrs=["bold"]))
 
         # Distro check does not exist - create the ./_proot directory
         # and download files for this architecture
@@ -208,35 +202,14 @@ def _fetch_proot_distribution(container_root):
         with open(path_to_proot_check, "w+") as check_file:
             check_file.write("done")
 
-        _print_unicode_safe(colored(u"""\N{check mark} """
-                                    u"""Successfully installed proot """
-                                    u"""distribution to """
-                                    u"""{0}\n""".format(container_root),
-                                    "green",
-                                    attrs=["bold"]))
+        printer.unicode_safe(colored(u"""\N{check mark} """
+                                     u"""Successfully installed proot """
+                                     u"""distribution to """
+                                     u"""{0}\n""".format(container_root),
+                                     "green",
+                                     attrs=["bold"]))
 
     return proot_distro_from_container(container_root)
-
-
-def _print_distribution_details(details):
-    """Print distribution details."""
-    distro_name = details["distro"]
-    pkgsysname = details["pkgsys"].__name__
-    release = details["release"]
-    arch = details["arch"]
-
-    output = (colored("""\nConfigured Distribution:\n""",
-                      "white",
-                      attrs=["underline"]) +
-              """ - Distribution Name: {0}\n""".format(colored(distro_name,
-                                                               "yellow")) +
-              """ - Release: {0}\n""".format(colored(release, "yellow")) +
-              """ - Architecture: {0}\n""".format(colored(arch, "yellow")) +
-              """ - Package System: {0}\n""".format(colored(pkgsysname,
-                                                            "yellow")) +
-              "\n")
-
-    _print_unicode_safe(output)
 
 
 def _extract_distro_archive(distro_archive_file, distro_folder):
@@ -246,7 +219,7 @@ def _extract_distro_archive(distro_archive_file, distro_folder):
                """{0}\n""").format(distro_archive_file.path())
         extract_members = [m for m in archive.getmembers()
                            if not m.isdev()]
-        _print_unicode_safe(colored(msg, "magenta", attrs=["bold"]))
+        printer.unicode_safe(colored(msg, "magenta", attrs=["bold"]))
         archive.extractall(members=extract_members, path=distro_folder)
 
         # Set the permissions of the extracted archive so we can delete it
@@ -296,14 +269,14 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
 
     try:
         os.stat(path_to_distro_folder)
-        _print_unicode_safe(colored(u"""\N{check mark}  """
-                                    u"""Using pre-existing folder for """
-                                    u"""distro {0} {1} ({2})\n"""
-                                    """""".format(details["distro"],
-                                                  details["release"],
-                                                  details["arch"]),
-                                    "green",
-                                    attrs=["bold"]))
+        printer.unicode_safe(colored(u"""\N{check mark}  """
+                                     u"""Using pre-existing folder for """
+                                     u"""distro {0} {1} ({2})\n"""
+                                     """""".format(details["distro"],
+                                                   details["release"],
+                                                   details["arch"]),
+                                     "green",
+                                     attrs=["bold"]))
     except OSError:
         # Download the distribution tarball in the distro dir
         _download_distro(details, path_to_distro_folder)
@@ -340,23 +313,12 @@ def _parse_arguments(arguments=None):
     return parser.parse_args(arguments)
 
 
-def _check_if_exists(entity):
-    """Raise RuntimeError if entity does not exist."""
-    if not os.path.exists(entity):
-        raise RuntimeError("""A required entity {0} does not exist\n"""
-                           """Try running psq-travis-container-create """
-                           """first before using psq-travis-container-use."""
-                           """""".format(entity))
-
-
-def container_for_directory(container_dir, result):
-    """Return an existing LinuxContainer at container_dir.
+def container_for_directory(container_dir, distro_config):
+    """Return an existing LinuxContainer at container_dir for distro_config.
 
     Also take into account arguments in result to look up the the actual
     directory for this distro.
     """
-    distro_config = distro.lookup(vars(result))
-
     path_to_distro_folder = get_dir_for_distro(container_dir,
                                                distro_config)
 
@@ -366,7 +328,7 @@ def container_for_directory(container_dir, result):
     ]
 
     for entity in required_entities:
-        _check_if_exists(entity)
+        util.check_if_exists(entity)
 
     proot_distribution = proot_distro_from_container(container_dir)
 
@@ -377,21 +339,17 @@ def container_for_directory(container_dir, result):
                           distro_config["pkgsys"])
 
 
-def create(container_dir, arguments):
+def create(container_dir, distro_config, arguments):
     """Create a container using proot."""
     # First fetch a proot distribution if we don't already have one
     proot_distro = _fetch_proot_distribution(container_dir)
 
     # Now fetch the distribution tarball itself, if we specified one
-    if arguments["distro"]:
-        distro_config = distro.lookup(arguments)
-
-        _print_distribution_details(distro_config)
-        return _fetch_distribution(container_dir,
-                                   proot_distro,
-                                   distro_config,
-                                   arguments["repositories"],
-                                   arguments["packages"])
+    return _fetch_distribution(container_dir,
+                               proot_distro,
+                               distro_config,
+                               arguments["repositories"],
+                               arguments["packages"])
 
 
 def _info_with_arch_to_config(info, arch):
@@ -469,7 +427,8 @@ class LinuxInfo(DistroInfo):
         })
 
         return DistroInfo.__new__(cls,
-                                  constructor_func=create,
+                                  create_func=create,
+                                  get_func=container_for_directory,
                                   match_func=match,
                                   enumerate_func=enumerate_all,
                                   kwargs=kwargs)
