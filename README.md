@@ -120,12 +120,11 @@ To run a command inside a container, use `psq-travis-container-exec`:
                             Architecture (all architectures other than the
                             system architecture will be emulated with qemu)
                             [env var: CONTAINER_ARCH]
-      --cmd [CMD [CMD ...]]
-                            Command to run inside of container
+      -- [CMD [CMD ...]]    Command to run inside of container
 
-`CMD` is a space-separated command to be run inside the container. Executables
-are resolved relative to the distribution container, so running `bash` would
-run `CONTAINER_DIR/bin/bash` and not `/bin/bash` inside travis.
+Executables in CMD are resolved relative to the distribution container, so
+running `bash` would run `CONTAINER_DIR/bin/bash` and not `/bin/bash`
+inside travis.
 
 The `--container`, `--release` and `--arch` options are used to select a
 pre-existing distribution container set up with `psq-travis-container-create`.
