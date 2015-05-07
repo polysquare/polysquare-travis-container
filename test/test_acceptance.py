@@ -17,11 +17,14 @@ import tempfile
 
 from collections import namedtuple
 
+from contextlib import contextmanager
+
+from test.testutil import download_file_cached
+
 from nose_parameterized import parameterized
 
 from psqtraviscontainer import architecture
 from psqtraviscontainer import create
-from psqtraviscontainer import distro
 from psqtraviscontainer import use
 
 from psqtraviscontainer.architecture import Alias
@@ -29,7 +32,9 @@ from psqtraviscontainer.architecture import Alias
 from psqtraviscontainer.constants import have_proot_distribution
 from psqtraviscontainer.constants import proot_distribution_dir
 
-from psqtraviscontainer.distro import AVAILABLE_DISTRIBUTIONS
+from psqtraviscontainer.distro import available_distributions
+
+from psqtraviscontainer.linux_container import get_dir_for_distro
 
 import tempdir
 
@@ -101,7 +106,8 @@ def run_create_container_on_dir(directory, *args, **kwargs):
 
     arguments = [directory] + _convert_to_switch_args(kwargs)
 
-    create.main(arguments=arguments)
+    with cached_downloads():
+        create.main(arguments=arguments)
 
 
 def run_create_container(**kwargs):
@@ -115,9 +121,25 @@ def run_create_container(**kwargs):
     return temp_dir
 
 
+def default_create_container_arguments():
+    """Get set of arguments which would create first known distribution."""
+    distro_config = list(available_distributions())[0]
+    arguments = ("distro", "release")
+    config = {k: v for k, v in distro_config.items() if k in arguments}
+    return config
+
+
+def run_create_default_container():
+    """Run main() and return container for first known distribution."""
+    return run_create_container(**(default_create_container_arguments()))
+
+
 def run_use_container_on_dir(directory, **kwargs):
     """Run main() from psqtraviscontainer/use.py and return status code."""
-    arguments = [directory] + _convert_to_switch_args(kwargs)
+    cmd = kwargs["cmd"]
+    del kwargs["cmd"]
+
+    arguments = [directory] + _convert_to_switch_args(kwargs) + ["--"] + cmd
 
     return use.main(arguments=arguments)
 
@@ -130,13 +152,9 @@ def test_case_requiring_platform(system):
 
         def setUp(self):  # suppress(N802)
             """Automatically skips tests if not run on platform."""
-            import six
-
             super(TestCaseRequiring, self).setUp()
             if platform.system() != system:
                 self.skipTest("""not running on system - {0}""".format(system))
-
-            self.patch(sys, "stdout", six.StringIO())
 
     return TestCaseRequiring
 
@@ -147,7 +165,7 @@ class TestCreateProot(test_case_requiring_platform("Linux")):
 
     def test_create_proot_distro(self):
         """Check that we create a proot distro."""
-        with run_create_container() as container:
+        with run_create_default_container() as container:
             self.assertThat(have_proot_distribution(container),
                             FileExists())
 
@@ -158,19 +176,45 @@ class TestCreateProot(test_case_requiring_platform("Linux")):
         make sure that across two runs they are actual. If they were,
         then no re-downloading took place.
         """
-        with run_create_container() as container:
+        with run_create_default_container() as container:
             path_to_proot_stamp = have_proot_distribution(container)
 
             first_timestamp = os.stat(path_to_proot_stamp).st_mtime
 
-            run_create_container_on_dir(container)
+            config = default_create_container_arguments()
+            run_create_container_on_dir(container, **config)
 
             second_timestamp = os.stat(path_to_proot_stamp).st_mtime
 
             self.assertEqual(first_timestamp, second_timestamp)
 
 
-class ContainerInspectionTestCase(test_case_requiring_platform("Linux")):
+@contextmanager
+def cached_downloads():
+    """Context manager to ensure that download_file is patched to use cache."""
+    import six
+    import psqtraviscontainer.download  # suppress(PYC50)
+
+    original_download_file = psqtraviscontainer.download.download_file
+    psqtraviscontainer.download.download_file = download_file_cached
+
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+
+    if not os.environ.get("_POLYSQUARE_TRAVIS_CONTAINER_TEST_SHOW_OUTPUT",
+                          None):
+        sys.stdout = six.StringIO()
+        sys.stderr = six.StringIO()
+
+    try:
+        yield
+    finally:
+        psqtraviscontainer.download.download_file = original_download_file
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+
+
+class ContainerInspectionTestCase(TestCase):
 
     """TestCase where container persists until all tests have completed.
 
@@ -201,20 +245,14 @@ class ContainerInspectionTestCase(test_case_requiring_platform("Linux")):
     @classmethod
     def setUpClass(cls):  # suppress(N802)
         """Set up container for all tests in this test case."""
-        if platform.system() == "Linux":
-            cls.create_container()
+        config = default_create_container_arguments()
+        cls.create_container(**config)
 
     @classmethod
     def tearDownClass(cls):  # suppress(N802)
         """Dissolve container for all tests in this test case."""
-        if platform.system == "Linux":
-            try:
-                cls.container_temp_dir.dissolve()
-            except IOError:  # suppress(pointless-except)
-                # IOError is fine. The directory will be deleted by the
-                # user's operating system a little later, there's not much we
-                # can do about this.
-                pass
+        if cls.container_temp_dir:
+            cls.container_temp_dir.dissolve()
             cls.container_temp_dir = None
 
 
@@ -230,6 +268,13 @@ QEMU_ARCHITECTURES = [
 class TestProotDistribution(ContainerInspectionTestCase):
 
     """Tests to inspect a proot distribution itself."""
+
+    def setUp(self):   # suppress(N802)
+        """Set up TestProotDistribution."""
+        if platform.system() != "Linux":
+            self.skipTest("""proot is only available on linux""")
+
+        super(TestProotDistribution, self).setUp()
 
     def test_has_proot_dir(self):
         """Check that we have a proot directory in our distribution."""
@@ -267,45 +312,51 @@ class TestProotDistribution(ContainerInspectionTestCase):
         self.assertTrue(stat_result.st_mode & executable_mask != 0)
 
 
-def exec_for_retuncode(cmd):
+def exec_for_returncode(*argv):
     """Execute command for its return code.
 
     Check that use.main() returns exit code of subprocess.
     """
-    distro_config = AVAILABLE_DISTRIBUTIONS[0]
-    config = {
-        "distro": distro_config.type,
-        "release": distro_config.release
-    }
-
+    config = default_create_container_arguments()
     with run_create_container(**config) as cont:
-        kwargs = config
-        kwargs["cmd"] = cmd
+        use_config = config.copy()
+        use_config["cmd"] = list(argv)
         return run_use_container_on_dir(cont,
-                                        **kwargs)
+                                        **use_config)
 
 
-class TestExecInContainer(test_case_requiring_platform("Linux")):
+PLATFORM_PROGRAM_MAPPINGS = {
+    "Linux": {
+        "0": ["true"],
+        "1": ["false"]
+    },
+    "Darwin": {
+        "0": ["true"],
+        "1": ["false"]
+    }
+}
+
+
+class TestExecInContainer(TestCase):
 
     """A test case for executing things inside a container."""
 
     def test_exec_fail_no_distro(self):  # suppress(no-self-use)
         """Check that use.main() fails where there is no distro."""
-        with run_create_container() as container_dir:
+        with run_create_default_container() as container_dir:
             with ExpectedException(RuntimeError):
-                distro_config = AVAILABLE_DISTRIBUTIONS[0]
-                run_use_container_on_dir(container_dir,
-                                         distro=distro_config.type,
-                                         release=distro_config.release,
-                                         cmd="true")
+                cmd = PLATFORM_PROGRAM_MAPPINGS[platform.system()]["0"]
+                run_use_container_on_dir(container_dir, cmd=cmd)
 
     def test_exec_return_zero(self):
         """Check that use.main() returns true exit code of subprocess."""
-        self.assertEqual(exec_for_retuncode("true"), 0)
+        cmd = PLATFORM_PROGRAM_MAPPINGS[platform.system()]["0"]
+        self.assertEqual(exec_for_returncode(*cmd), 0)
 
     def test_exec_return_one(self):
         """Check that use.main() returns false exit code of subprocess."""
-        self.assertEqual(exec_for_retuncode("false"), 1)
+        cmd = PLATFORM_PROGRAM_MAPPINGS[platform.system()]["1"]
+        self.assertEqual(exec_for_returncode(*cmd), 1)
 
 ARCHITECTURE_LIBDIR_MAPPINGS = {
     "armhf": "arm-linux-gnueabihf",
@@ -354,10 +405,10 @@ class InstallationConfig(object):  # pylint:disable=R0903
 
 def _create_distro_test(test_name,  # pylint:disable=R0913
                         config,
-                        arch,
                         repos,
                         packages,
-                        test_files):
+                        test_files,
+                        **kwargs):
     """Create a TemplateDistroTest class."""
     class TemplateDistroTest(ContainerInspectionTestCase):
 
@@ -372,27 +423,28 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
         def setUp(self):  # suppress(N802)
             """Set up path to distro root."""
             super(TemplateDistroTest, self).setUp()
-            root = distro.get_dir(self.container_dir,
-                                  config,
-                                  config.archfetch(arch))
-            self.path_to_distro_root = os.path.join(self.container_dir, root)
 
         @classmethod
         def setUpClass(cls):  # suppress(N802)
             """Create a container for all uses of this TemplateDistroTest."""
-            if platform.system() != "Linux":
-                return
-
             with InstallationConfig(packages, repos) as command_config:
-                cls.create_container(distro=config.type,
-                                     release=config.release,
-                                     arch=arch,
-                                     repos=command_config.repos_path,
-                                     packages=command_config.packages_path)
+                keys = ("distro", "release")
+                kwargs.update({k: v for k, v in config.items() if k in keys})
+
+                cls.create_container(repos=command_config.repos_path,
+                                     packages=command_config.packages_path,
+                                     **kwargs)
 
         def test_distro_folder_exists(self):
             """Check that distro folder exists for ."""
-            self.assertThat(self.path_to_distro_root, DirExists())
+            if platform.system() == "Linux":
+                root = get_dir_for_distro(self.container_dir,
+                                          config)
+                self.assertThat(os.path.join(self.container_dir, root),
+                                DirExists())
+            elif platform.system() == "Darwin":
+                self.assertThat(os.path.join(self.container_dir, "bin"),
+                                DirExists())
 
         def test_has_package_installed(self):
             """Check that our testing package got installed.
@@ -401,15 +453,23 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
             was successfully added and the package was successfully installed
             using the native tool. That means that the proot "works".
             """
-            distro_arch = architecture.Alias.debian(arch)
-            archlib = ARCHITECTURE_LIBDIR_MAPPINGS[distro_arch]
+            format_kwargs = dict()
+
+            if platform.system() == "Linux":
+                root = get_dir_for_distro(self.container_dir,
+                                          config)
+                distro_arch = architecture.Alias.debian(kwargs["arch"])
+                archlib = ARCHITECTURE_LIBDIR_MAPPINGS[distro_arch]
+                format_kwargs["archlib"] = archlib
+            else:
+                root = self.container_dir
 
             # Match against a list of files. If none of the results are None,
             # then throw a list of mismatches.
             match_results = []
             for filename in test_files:
-                path_to_file = os.path.join(self.path_to_distro_root,
-                                            filename.format(archlib=archlib))
+                path_to_file = os.path.join(root,
+                                            filename.format(**format_kwargs))
                 result = FileExists().match(path_to_file)
                 if result:
                     match_results.append(result)
@@ -432,44 +492,47 @@ _DISTRO_INFO = {
     "Fedora": _DistroPackage(package="libaio",
                              repo=[],
                              files=["lib/libaio.so.1.0.1",
-                                    "lib64/libaio.so.1.0.1"])
+                                    "lib64/libaio.so.1.0.1"]),
+    "OSX": _DistroPackage(package="xz",
+                          repo=[],
+                          files=["bin/xz"])
 }
-
-
-def _blacklisted_arch():
-    """Return universal formatted blacklisted arch for current arch."""
-    blacklist = {
-        "x86": "x86_64",
-        "x86_64": "x86"
-    }
-
-    try:
-        return blacklist[Alias.universal(platform.machine())]
-    except KeyError:
-        return None
 
 
 def get_distribution_tests():
     """Fetch distribution tests as dictionary."""
     tests = {}
 
-    for config in AVAILABLE_DISTRIBUTIONS:
-        for distro_arch in config.archs:
-            # Blacklist 64-bit ABIs that don't emulate properly
-            if Alias.universal(distro_arch) != _blacklisted_arch():
-                name = "Test{0}{1}{2}Distro".format(config.type,
-                                                    config.release,
-                                                    distro_arch)
+    for config in available_distributions():
+        config = config.copy()
+        name_array = bytearray()
+        for key in sorted(list(config.keys())):
+            if key in ("info", "pkgsys", "url"):
+                continue
 
-                repositories_to_add = _DISTRO_INFO[config.type].repo
-                packages_to_install = [_DISTRO_INFO[config.type].package]
-                files_to_test_for = _DISTRO_INFO[config.type].files
-                tests[name] = _create_distro_test(name,
-                                                  config,
-                                                  Alias.universal(distro_arch),
-                                                  repositories_to_add,
-                                                  packages_to_install,
-                                                  files_to_test_for)
+            name_array += bytes(key[0].upper().encode() +
+                                key[1:].encode() +
+                                config[key][0].upper().encode() +
+                                config[key][1:].encode())
+        name = "Test{0}".format(name_array.decode("ascii"))
+
+        distro = config["distro"]
+        repositories_to_add = _DISTRO_INFO[distro].repo
+        packages_to_install = [_DISTRO_INFO[distro].package]
+        files_to_test_for = _DISTRO_INFO[distro].files
+        kwargs = dict()
+
+        try:
+            kwargs["arch"] = Alias.universal(config["arch"])
+        except KeyError:  # suppress(pointless-except)
+            pass
+
+        tests[name] = _create_distro_test(name,
+                                          config,
+                                          repositories_to_add,
+                                          packages_to_install,
+                                          files_to_test_for,
+                                          **kwargs)
 
     return tests
 

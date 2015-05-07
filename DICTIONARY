@@ -1,4 +1,5 @@
 ABIs
+AVAILABLE_DISTRIBUTIONS
 arg
 arm
 chroot
@@ -18,17 +19,22 @@ filename
 filesystem
 flake8
 getter
+Homebrew
+homebrew
 launchpad
 overridable
 PermissionError
+_POLYSQUARE_TRAVIS_CONTAINER_TEST_CACHE_DIR
 PPA
 ppa
 Polysquare
 polysquare
 ppc
+prepended
 proot
 psq
 psqtraviscontainer
+pychecker
 pycurl
 PyPI
 pypy
@@ -36,6 +42,7 @@ matcher
 metaclass
 metadata
 net
+runtimes
 qemu
 qemu's
 rootfs

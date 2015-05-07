@@ -28,11 +28,11 @@ setup(name="psqtraviscontainer",
           ("https://github.com/smspillaz/urlgrabber/tarball/master"
            "#egg=urlgrabber-3.10.1")
       ],
-      setup_requires=["setuptools-markdown"],
       install_requires=["configargparse",
                         "pycurl",
                         "python-debian",
                         "six",
+                        "shutilwhich",
                         "urlgrabber==3.10.1",
                         "colorama",
                         "tempdir",
@@ -50,6 +50,9 @@ setup(name="psqtraviscontainer",
           ],
           "polysquarelint": [
               "polysquare-setuptools-lint"
+          ],
+          "upload": [
+              "setuptools-markdown"
           ]
       },
       entry_points={

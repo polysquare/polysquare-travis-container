@@ -15,16 +15,16 @@ from psqtraviscontainer import distro
 
 def get_parser(action):
     """Get a parser with options common to both commands."""
-    # Iterate over the AVAILABLE_DISTRIBUTIONS and get a list of available
+    # Iterate over the available_distributions and get a list of available
     # distributions and architectures for the --distro and --arch arguments
-    available_architectures = set()
-    available_distributions = set()
+    architectures = set()
+    distributions = set()
 
-    for distribution in distro.AVAILABLE_DISTRIBUTIONS:
-        available_distributions.add(distribution.type)
-
-        for arch in distribution.archs:
-            available_architectures.add(architecture.Alias.universal(arch))
+    for config in distro.available_distributions():
+        if "distro" in config:
+            distributions.add(config["distro"])
+        if "arch" in config:
+            architectures.add(architecture.Alias.universal(config["arch"]))
 
     description = """{0} a CI container""".format(action)
     parser = configargparse.ArgumentParser(description=description)
@@ -32,29 +32,25 @@ def get_parser(action):
     current_arch = architecture.Alias.universal(platform.machine())
 
     parser.add_argument("containerdir",
-                        nargs=1,
                         metavar=("CONTAINER_DIRECTORY"),
                         help="""Directory to place container in""",
                         type=str)
     parser.add_argument("--distro",
-                        nargs=1,
                         type=str,
                         help="""Distribution name to create container of""",
-                        choices=available_distributions,
+                        choices=distributions,
                         env_var="CONTAINER_DISTRO")
     parser.add_argument("--release",
-                        nargs=1,
                         type=str,
                         help="""Distribution release to create container of""",
                         env_var="CONTAINER_RELEASE")
     parser.add_argument("--arch",
-                        nargs=1,
                         type=str,
                         help=("""Architecture (all architectures other """
                               """than the system architecture will be """
                               """emulated with qemu)"""),
-                        default=[current_arch],
-                        choices=available_architectures,
+                        default=current_arch,
+                        choices=architectures,
                         env_var="CONTAINER_ARCH")
 
     return parser

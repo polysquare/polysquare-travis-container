@@ -5,9 +5,13 @@
 # See /LICENCE.md for Copyright information
 """Implementations of package-system controllers for various distributions."""
 
+import abc
+
 import sys
 
 import tempfile
+
+from collections import namedtuple
 
 from psqtraviscontainer import directory
 from psqtraviscontainer import download
@@ -30,17 +34,38 @@ def _run_task(executor, description, argv):
     executor.execute_success(argv)
 
 
-class Dpkg(object):
+class PackageSystem(six.with_metaclass(abc.ABCMeta, object)):
+
+    """An abstract class representing a package manager."""
+
+    PopenArguments = namedtuple("PopenArguments", "argv env")
+
+    @abc.abstractmethod
+    def add_repositories(self, repos):
+        """Add repositories to central packaging system."""
+        del repos
+
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def install_packages(self, package_names):
+        """Install specified packages in package_names."""
+        del package_names
+
+        raise NotImplementedError()
+
+
+class Dpkg(PackageSystem):
 
     """Debian Packaging System."""
 
     def __init__(self,
-                 config,
+                 release,
                  arch,
                  executor):
-        """Initialize Dpkg with config."""
+        """Initialize Dpkg with release and arch."""
         super(Dpkg, self).__init__()
-        self._config = config
+        self._release = release
         self._arch = arch
         self._executor = executor
 
@@ -64,7 +89,7 @@ class Dpkg(object):
             "ubuntu": [u[1] for u in _ubuntu_urls if self._arch in u[0]],
             "debian": ["http://ftp.debian.org/"],
             "launchpad": ["http://ppa.launchpad.net/"],
-            "release": [self._config.release]
+            "release": [self._release]
         }
         format_keys = {
             k: _value_or_error(v) for k, v in format_keys.items()
@@ -87,10 +112,10 @@ class Dpkg(object):
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
         _run_task(self._executor,
-                  "Update repositories",
+                  """Update repositories""",
                   ["apt-get", "update", "-qq", "-y", "--force-yes"])
         _run_task(self._executor,
-                  "Install {0}".format(str(package_names)),
+                  """Install {0}""".format(str(package_names)),
                   ["apt-get",
                    "install",
                    "-qq",
@@ -98,20 +123,20 @@ class Dpkg(object):
                    "--force-yes"] + package_names)
 
 
-class Yum(object):
+class Yum(PackageSystem):
 
     """Red Hat Packaging System."""
 
     def __init__(self,
-                 config,
+                 release,
                  arch,
                  executor):
-        """Initialize Dpkg with config."""
-        super(Yum, self).__init__()
-        self._config = config
-        self._executor = executor
-
+        """Initialize Yum with release and executor."""
         del arch
+        del release
+
+        super(Yum, self).__init__()
+        self._executor = executor
 
     def add_repositories(self, repos):
         """Add a repository to the central packaging system."""
@@ -132,5 +157,28 @@ class Yum(object):
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
         _run_task(self._executor,
-                  "Install {0}".format(str(package_names)),
+                  """Install {0}""".format(str(package_names)),
                   ["yum", "install", "-y"] + package_names)
+
+
+class Brew(PackageSystem):
+
+    """Homebrew packaging system for OS X."""
+
+    def __init__(self, executor):
+        """Initialize homebrew for executor."""
+        super(Brew, self).__init__()
+        self._executor = executor
+
+    def add_repositories(self, repos):
+        """Add repositories as specified at repos.
+
+        This function doesn't do anything on Brew at the moment.
+        """
+        pass
+
+    def install_packages(self, package_names):
+        """Install all packages in list package_names."""
+        _run_task(self._executor,
+                  """Install {0}""".format(str(package_names)),
+                  ["brew", "install"] + package_names)
