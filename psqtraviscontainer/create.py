@@ -88,13 +88,13 @@ def main(arguments=None):
     selected_distro = distro.lookup(vars(result))
 
     _print_distribution_details(selected_distro)
-    container = selected_distro["info"].create_func(container_dir,
-                                                    selected_distro)
 
     # Now set up packages in the distribution. If more packages need
     # to be installed or the installed packages need to be updated then
     # the build cache should be cleared.
-    container.install_packages(result.repositories, result.packages)
+    with selected_distro["info"].create_func(container_dir,
+                                             selected_distro) as container:
+        container.install_packages(result.repositories, result.packages)
 
     printer.unicode_safe(colored(u"""\N{check mark}  """
                                  u"""Container has been set up """
