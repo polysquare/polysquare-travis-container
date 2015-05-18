@@ -5,6 +5,8 @@
 # See /LICENCE.md for Copyright information
 """Specialization for linux containers, using proot."""
 
+import errno
+
 import os
 
 import platform
@@ -120,6 +122,29 @@ class LinuxContainer(container.AbstractContainer):
     def _package_system(self):
         """Return package system for this distribution."""
         return self._pkgsys
+
+    def clean(self):
+        """Clean out this container."""
+        rmtree = container.AbstractContainer.rmtree
+
+        rmtree(os.path.join(self._distro_dir, "tmp"))
+        rmtree(os.path.join(self._distro_dir, "var", "cache", "apt"))
+        rmtree(os.path.join(self._distro_dir, "usr", "share", "doc"))
+        rmtree(os.path.join(self._distro_dir, "usr", "share", "locale"))
+        rmtree(os.path.join(self._distro_dir, "usr", "share", "man"))
+        rmtree(os.path.join(self._distro_dir, "var", "lib", "apt", "lists"))
+        rmtree(os.path.join(self._distro_dir, "dev"))
+
+        try:
+            os.makedirs(os.path.join(self._distro_dir,
+                                     "var",
+                                     "cache",
+                                     "apt",
+                                     "archives",
+                                     "partial"))
+        except OSError as error:
+            if error.errno != errno.EEXIST:   # suppress(PYC90)
+                raise error
 
 
 def _extract_deb_data(archive, tmp_dir):
