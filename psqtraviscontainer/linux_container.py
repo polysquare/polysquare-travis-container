@@ -377,9 +377,170 @@ def create(container_dir, distro_config):
     proot_distro = _fetch_proot_distribution(container_dir)
 
     # Now fetch the distribution tarball itself, if we specified one
-    return _fetch_distribution(container_dir,
+    cont = _fetch_distribution(container_dir,
                                proot_distro,
                                distro_config)
+
+    def _minimize_ubuntu(cont):
+        """Reduce the install footprint of ubuntu as much as possible."""
+        required_packages = {
+            "precise": set([
+                "apt",
+                "base-files",
+                "base-passwd",
+                "bash",
+                "bsdutils",
+                "coreutils",
+                "dash",
+                "debconf",
+                "debianutils",
+                "diffutils",
+                "dpkg",
+                "findutils",
+                "gcc-4.6-base",
+                "gnupg",
+                "gpgv",
+                "grep",
+                "gzip",
+                "libacl1",
+                "libapt-pkg4.12",
+                "libattr1",
+                "libbz2-1.0",
+                "libc-bin",
+                "libc6",
+                "libdb5.1",
+                "libffi6",
+                "libgcc1",
+                "liblzma5",
+                "libpam-modules",
+                "libpam-modules-bin",
+                "libpam-runtime",
+                "libpam0g",
+                "libreadline6",
+                "libselinux1",
+                "libstdc++6",
+                "libtinfo5",
+                "libusb-0.1-4",
+                "makedev",
+                "mawk",
+                "multiarch-support",
+                "perl-base",
+                "readline-common",
+                "sed",
+                "sensible-utils",
+                "tar",
+                "tzdata",
+                "ubuntu-keyring",
+                "xz-utils",
+                "zlib1g"
+            ]),
+            "trusty": set([
+                "apt",
+                "base-files",
+                "base-passwd",
+                "bash",
+                "bsdutils",
+                "coreutils",
+                "dash",
+                "debconf",
+                "debianutils",
+                "diffutils",
+                "dh-python",
+                "dpkg",
+                "findutils",
+                "gcc-4.8-base",
+                "gcc-4.9-base",
+                "gnupg",
+                "gpgv",
+                "grep",
+                "gzip",
+                "libacl1",
+                "libapt-pkg4.12",
+                "libaudit1",
+                "libaudit-common",
+                "libattr1",
+                "libbz2-1.0",
+                "libc-bin",
+                "libc6",
+                "libcap2",
+                "libdb5.3",
+                "libdebconfclient0",
+                "libexpat1",
+                "libmpdec2",
+                "libffi6",
+                "libgcc1",
+                "liblzma5",
+                "libncursesw5",
+                "libpcre3",
+                "libpam-modules",
+                "libpam-modules-bin",
+                "libpam-runtime",
+                "libpam0g",
+                "libpython3-stdlib",
+                "libpython3.4-stdlib",
+                "libpython3",
+                "libpython3-minimal",
+                "libpython3.4",
+                "libpython3.4-minimal",
+                "libreadline6",
+                "libselinux1",
+                "libssl1.0.0",
+                "libstdc++6",
+                "libsqlite3-0",
+                "libtinfo5",
+                "libusb-0.1-4",
+                "lsb-release",
+                "makedev",
+                "mawk",
+                "mime-support",
+                "multiarch-support",
+                "perl-base",
+                "python3",
+                "python3-minimal",
+                "python3.4",
+                "python3.4-minimal",
+                "readline-common",
+                "sed",
+                "sensible-utils",
+                "tar",
+                "tzdata",
+                "ubuntu-keyring",
+                "xz-utils",
+                "zlib1g"
+            ])
+        }
+
+        os.environ["SUDO_FORCE_REMOVE"] = "yes"
+        os.environ["DEBIAN_FRONTEND"] = "noninteractive"
+
+        pkgs = set(cont.execute(["dpkg-query",
+                                 "-Wf",
+                                 "${Package} "])[1].split(" "))
+        release = distro_config["release"]
+        remove = [l for l in list(pkgs ^ required_packages[release]) if len(l)]
+
+        if len(remove):
+            cont.execute_success(["dpkg",
+                                  "--purge",
+                                  "--force-all"] + remove,
+                                 minimal_bind=True)
+
+        with open(os.path.join(get_dir_for_distro(container_dir,
+                                                  distro_config),
+                               "etc",
+                               "apt",
+                               "apt.conf.d",
+                               "99container"), "w") as apt_config:
+            apt_config.write("\n".join([
+                "APT::Install-Recommends \"0\";",
+                "APT::Install-Suggests \"0\";"
+            ]))
+
+    minimize_actions = defaultdict(lambda: lambda c: None,
+                                   Ubuntu=_minimize_ubuntu)
+    minimize_actions[distro_config["distro"]](cont)
+
+    return cont
 
 
 def _info_with_arch_to_config(info, arch):
