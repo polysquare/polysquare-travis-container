@@ -22,6 +22,8 @@ from collections import namedtuple
 
 from contextlib import closing
 
+from itertools import chain
+
 from debian import arfile
 
 from psqtraviscontainer import architecture
@@ -192,6 +194,29 @@ def _fetch_proot_distribution(container_root):
                      os.stat(path_to_proot).st_mode | stat.S_IXUSR)
             return path_to_proot
 
+    def _extract_qemu(qemu_deb_path, qemu_temp_dir):
+        """Extract qemu."""
+        printer.unicode_safe(colored(("""-> Extracting {0}\n"""
+                                     """""").format(qemu_deb_path),
+                                     "magenta",
+                                     attrs=["bold"]))
+        archive = arfile.ArFile(qemu_deb_path)
+        _extract_deb_data(archive, qemu_temp_dir)
+
+    def _remove_unused_emulators(qemu_binaries_path):
+        """Remove unused emulators from qemu distribution."""
+        distributions = distro.available_distributions()
+        cur_arch = platform.machine()
+        archs = [d["info"].kwargs["arch"] for d in distributions]
+        archs = set([architecture.Alias.qemu(a) for a in chain(*archs)
+                     if a != architecture.Alias.universal(cur_arch)])
+        keep_binaries = ["qemu-" + a for a in archs] + ["proot"]
+
+        for root, _, filenames in os.walk(qemu_binaries_path):
+            for filename in filenames:
+                if os.path.basename(filename) not in keep_binaries:
+                    os.remove(os.path.join(root, filename))
+
     def _download_qemu(distribution_dir, arch):
         """Download arch build of qemu and extract binaries."""
         qemu_url = _QEMU_URL_BASE.format(arch=arch)
@@ -203,20 +228,17 @@ def _fetch_proot_distribution(container_root):
             # cause tons of pollution
             qemu_tmp = os.path.join(path_to_proot_dir, "_qemu_tmp")
             with directory.Navigation(qemu_tmp):
-                printer.unicode_safe(colored(("""-> Extracting {0}\n"""
-                                             """""").format(qemu_deb.path()),
-                                             "magenta",
-                                             attrs=["bold"]))
-                archive = arfile.ArFile(qemu_deb.path())
-                _extract_deb_data(archive, qemu_tmp)
+                qemu_binaries_path = os.path.join(qemu_tmp, "usr", "bin")
+                _extract_qemu(qemu_deb.path(), qemu_tmp)
+                _remove_unused_emulators(qemu_binaries_path)
 
-                qemu_binaries_path = os.path.join(qemu_tmp, "usr/bin")
                 for filename in os.listdir(qemu_binaries_path):
                     shutil.copy(os.path.join(qemu_binaries_path, filename),
                                 os.path.join(path_to_proot_dir, "bin"))
 
             shutil.rmtree(qemu_tmp)
-            return os.path.join(distribution_dir, "bin", "qemu-{arch}")
+
+        return os.path.join(distribution_dir, "bin", "qemu-{arch}")
 
     try:
         os.stat(path_to_proot_check)
