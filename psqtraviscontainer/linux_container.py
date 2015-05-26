@@ -99,15 +99,32 @@ class LinuxContainer(container.AbstractContainer):
         self._arch = arch
         self._pkgsys = pkg_sys_constructor(release, arch, self)
 
-    def _subprocess_popen_arguments(self, argv):
+    def _subprocess_popen_arguments(self, argv, **kwargs):
         """For native arguments argv, return AbstractContainer.PopenArguments.
 
         This returned tuple will have no environment variables set, but the
         proot command to enter this container will be prepended to the
         argv provided.
+
+        Pass minimal_bind=True to specify that no directories on the
+        user filesystem should be exposed to the container. This will
+        allow dpkg to remove certain system files in the container.
         """
         popen_args = self.__class__.PopenArguments
-        proot_command = [self._proot_distro.proot(), "-S", self._distro_dir]
+
+        if kwargs.get("minimal_bind", None):
+            proot_command = [
+                self._proot_distro.proot(),
+                "-r",
+                self._distro_dir,
+                "-0"
+            ]
+        else:
+            proot_command = [
+                self._proot_distro.proot(),
+                "-S",
+                self._distro_dir
+            ]
 
         # If we're not the same architecture, interpose qemu's emulator
         # for the target architecture as appropriate
