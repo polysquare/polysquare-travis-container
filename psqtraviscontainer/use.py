@@ -40,9 +40,10 @@ def main(arguments=None):
 
     container_dir = os.path.realpath(argparse_result.containerdir)
     selected_distro = distro.lookup(vars(argparse_result))
-    with selected_distro["info"].get_func(container_dir,
-                                          selected_distro) as container:
-        result, stdout, stderr = container.execute(command)
+    container = selected_distro["info"].get_func(container_dir,
+                                                 selected_distro)
+
+    result, stdout, stderr = container.execute(command)
 
     if argparse_result.show_output:
         sys.stdout.write(stdout)

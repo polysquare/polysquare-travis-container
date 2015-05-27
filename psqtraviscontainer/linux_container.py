@@ -121,17 +121,6 @@ class LinuxContainer(container.AbstractContainer):
         """Return package system for this distribution."""
         return self._pkgsys
 
-    def clean(self):
-        """Clean out this container."""
-        container.AbstractContainer.rmtree(os.path.join(self._distro_dir,
-                                                        "tmp"))
-        container.AbstractContainer.rmtree(os.path.join(self._distro_dir,
-                                                        "var",
-                                                        "cache",
-                                                        "apt",
-                                                        "archives"))
-        container.AbstractContainer.rmtree(os.path.join(self._distro_dir,
-                                                        "dev"))
 
 def _extract_deb_data(archive, tmp_dir):
     """Extract archive to tmp_dir."""

@@ -48,14 +48,6 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
 
     PopenArguments = namedtuple("PopenArguments", "argv env")
 
-    @staticmethod
-    def rmtree(directory):
-        """Remove directory, but ignore errors."""
-        try:
-            shutil.rmtree(directory)
-        except shutil.Error:   # suppress(useless-except)
-            pass
-
     @abc.abstractmethod
     def _subprocess_popen_arguments(self, argv):
         """Return a PopenArguments tuple.
@@ -71,26 +63,6 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
     def _package_system(self):
         """Return the package system this container should be using."""
         raise NotImplementedError()
-
-    @abc.abstractmethod
-    def clean(self):
-        """Clean this container to prepare it for caching.
-        
-        Remove any non-useful files here.
-        """
-        raise NotImplementedError()
-
-    def __enter__(self):
-        """Use this container as a context."""
-        return self
-
-    def __exit__(self, exc_type, value, traceback):
-        """Clean this container once it has been used a context."""
-        del exc_type
-        del value
-        del traceback
-
-        self.clean()
 
     def install_packages(self, repositories_path, packages_path):
         """Install packages and set up repositories as configured.
