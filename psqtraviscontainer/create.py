@@ -49,7 +49,7 @@ def _print_distribution_details(details):
 
     output += "\n".encode()
 
-    printer.unicode_safe(str(output))
+    printer.unicode_safe(output.decode("utf-8"))
 
 
 def _parse_arguments(arguments=None):
