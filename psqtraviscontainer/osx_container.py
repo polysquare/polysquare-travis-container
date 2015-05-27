@@ -67,9 +67,6 @@ class OSXContainer(container.AbstractContainer):
         """Return package system for this distribution."""
         return self._pkgsys
 
-    def clean(self):
-        """Clean out this container to prepare it for caching."""
-        pass
 
 def _extract_archive(archive_file, container_folder):
     """Extract distribution archive into container_folder."""

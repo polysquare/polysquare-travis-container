@@ -8,7 +8,7 @@
 from setuptools import find_packages, setup
 
 setup(name="psqtraviscontainer",
-      version="0.0.4",
+      version="0.0.3",
       description="Polysquare Travis-CI Container Root",
       long_description_markdown_filename="README.md",
       author="Sam Spilsbury",
