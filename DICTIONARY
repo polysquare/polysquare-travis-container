@@ -8,8 +8,9 @@ CONTAINER_ARCH
 CONTAINER_DIRECTORY
 CONTAINER_DISTRO
 CONTAINER_RELEASE
-distro
 Debian
+distro
+dpkg
 eg
 env
 Executables

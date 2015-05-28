@@ -48,14 +48,23 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
 
     PopenArguments = namedtuple("PopenArguments", "argv env")
 
+    @staticmethod
+    def rmtree(directory):
+        """Remove directory, but ignore errors."""
+        try:
+            shutil.rmtree(directory)
+        except (shutil.Error, OSError):   # suppress(pointless-except)
+            pass
+
     @abc.abstractmethod
-    def _subprocess_popen_arguments(self, argv):
+    def _subprocess_popen_arguments(self, argv, **kwargs):
         """Return a PopenArguments tuple.
 
         This indicates what should be passed to subprocess.Popen when the
         execute method is called on this class.
         """
         del argv
+        del kwargs
 
         raise NotImplementedError()
 
@@ -63,6 +72,26 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
     def _package_system(self):
         """Return the package system this container should be using."""
         raise NotImplementedError()
+
+    @abc.abstractmethod
+    def clean(self):
+        """Clean this container to prepare it for caching.
+
+        Remove any non-useful files here.
+        """
+        raise NotImplementedError()
+
+    def __enter__(self):
+        """Use this container as a context."""
+        return self
+
+    def __exit__(self, exc_type, value, traceback):
+        """Clean this container once it has been used a context."""
+        del exc_type
+        del value
+        del traceback
+
+        self.clean()
 
     def install_packages(self, repositories_path, packages_path):
         """Install packages and set up repositories as configured.
@@ -88,9 +117,13 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
 
             package_system.install_packages(packages)
 
-    def execute(self, argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE):
+    def execute(self,
+                argv,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                **kwargs):
         """Execute the process and arguments indicated by argv in container."""
-        argv, modify_env = self._subprocess_popen_arguments(argv)
+        argv, modify_env = self._subprocess_popen_arguments(argv, **kwargs)
 
         with updated_environ(modify_env) as env:
             argv[0] = shutil.which(argv[0])
@@ -107,11 +140,12 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
 
         return (executed_cmd.returncode, stdout_data, stderr_data)
 
-    def execute_success(self, argv):
+    def execute_success(self, argv, **kwargs):
         """Execute the command specified by argv, throws on failure."""
         returncode, stdout_data, stderr_data = self.execute(argv,
                                                             subprocess.PIPE,
-                                                            subprocess.PIPE)
+                                                            subprocess.PIPE,
+                                                            **kwargs)
 
         if returncode != 0:
             sys.stderr.write(stdout_data)

@@ -5,6 +5,8 @@
 # See /LICENCE.md for Copyright information
 """Specialization for linux containers, using proot."""
 
+import errno
+
 import os
 
 import platform
@@ -19,6 +21,8 @@ from collections import defaultdict
 from collections import namedtuple
 
 from contextlib import closing
+
+from itertools import chain
 
 from debian import arfile
 
@@ -97,15 +101,32 @@ class LinuxContainer(container.AbstractContainer):
         self._arch = arch
         self._pkgsys = pkg_sys_constructor(release, arch, self)
 
-    def _subprocess_popen_arguments(self, argv):
+    def _subprocess_popen_arguments(self, argv, **kwargs):
         """For native arguments argv, return AbstractContainer.PopenArguments.
 
         This returned tuple will have no environment variables set, but the
         proot command to enter this container will be prepended to the
         argv provided.
+
+        Pass minimal_bind=True to specify that no directories on the
+        user filesystem should be exposed to the container. This will
+        allow dpkg to remove certain system files in the container.
         """
         popen_args = self.__class__.PopenArguments
-        proot_command = [self._proot_distro.proot(), "-S", self._distro_dir]
+
+        if kwargs.get("minimal_bind", None):
+            proot_command = [
+                self._proot_distro.proot(),
+                "-r",
+                self._distro_dir,
+                "-0"
+            ]
+        else:
+            proot_command = [
+                self._proot_distro.proot(),
+                "-S",
+                self._distro_dir
+            ]
 
         # If we're not the same architecture, interpose qemu's emulator
         # for the target architecture as appropriate
@@ -120,6 +141,29 @@ class LinuxContainer(container.AbstractContainer):
     def _package_system(self):
         """Return package system for this distribution."""
         return self._pkgsys
+
+    def clean(self):
+        """Clean out this container."""
+        rmtree = container.AbstractContainer.rmtree
+
+        rmtree(os.path.join(self._distro_dir, "tmp"))
+        rmtree(os.path.join(self._distro_dir, "var", "cache", "apt"))
+        rmtree(os.path.join(self._distro_dir, "usr", "share", "doc"))
+        rmtree(os.path.join(self._distro_dir, "usr", "share", "locale"))
+        rmtree(os.path.join(self._distro_dir, "usr", "share", "man"))
+        rmtree(os.path.join(self._distro_dir, "var", "lib", "apt", "lists"))
+        rmtree(os.path.join(self._distro_dir, "dev"))
+
+        try:
+            os.makedirs(os.path.join(self._distro_dir,
+                                     "var",
+                                     "cache",
+                                     "apt",
+                                     "archives",
+                                     "partial"))
+        except OSError as error:
+            if error.errno != errno.EEXIST:   # suppress(PYC90)
+                raise error
 
 
 def _extract_deb_data(archive, tmp_dir):
@@ -150,6 +194,29 @@ def _fetch_proot_distribution(container_root):
                      os.stat(path_to_proot).st_mode | stat.S_IXUSR)
             return path_to_proot
 
+    def _extract_qemu(qemu_deb_path, qemu_temp_dir):
+        """Extract qemu."""
+        printer.unicode_safe(colored(("""-> Extracting {0}\n"""
+                                     """""").format(qemu_deb_path),
+                                     "magenta",
+                                     attrs=["bold"]))
+        archive = arfile.ArFile(qemu_deb_path)
+        _extract_deb_data(archive, qemu_temp_dir)
+
+    def _remove_unused_emulators(qemu_binaries_path):
+        """Remove unused emulators from qemu distribution."""
+        distributions = distro.available_distributions()
+        cur_arch = platform.machine()
+        archs = [d["info"].kwargs["arch"] for d in distributions]
+        archs = set([architecture.Alias.qemu(a) for a in chain(*archs)
+                     if a != architecture.Alias.universal(cur_arch)])
+        keep_binaries = ["qemu-" + a for a in archs] + ["proot"]
+
+        for root, _, filenames in os.walk(qemu_binaries_path):
+            for filename in filenames:
+                if os.path.basename(filename) not in keep_binaries:
+                    os.remove(os.path.join(root, filename))
+
     def _download_qemu(distribution_dir, arch):
         """Download arch build of qemu and extract binaries."""
         qemu_url = _QEMU_URL_BASE.format(arch=arch)
@@ -161,20 +228,17 @@ def _fetch_proot_distribution(container_root):
             # cause tons of pollution
             qemu_tmp = os.path.join(path_to_proot_dir, "_qemu_tmp")
             with directory.Navigation(qemu_tmp):
-                printer.unicode_safe(colored(("""-> Extracting {0}\n"""
-                                             """""").format(qemu_deb.path()),
-                                             "magenta",
-                                             attrs=["bold"]))
-                archive = arfile.ArFile(qemu_deb.path())
-                _extract_deb_data(archive, qemu_tmp)
+                qemu_binaries_path = os.path.join(qemu_tmp, "usr", "bin")
+                _extract_qemu(qemu_deb.path(), qemu_tmp)
+                _remove_unused_emulators(qemu_binaries_path)
 
-                qemu_binaries_path = os.path.join(qemu_tmp, "usr/bin")
                 for filename in os.listdir(qemu_binaries_path):
                     shutil.copy(os.path.join(qemu_binaries_path, filename),
                                 os.path.join(path_to_proot_dir, "bin"))
 
             shutil.rmtree(qemu_tmp)
-            return os.path.join(distribution_dir, "bin", "qemu-{arch}")
+
+        return os.path.join(distribution_dir, "bin", "qemu-{arch}")
 
     try:
         os.stat(path_to_proot_check)
@@ -313,9 +377,170 @@ def create(container_dir, distro_config):
     proot_distro = _fetch_proot_distribution(container_dir)
 
     # Now fetch the distribution tarball itself, if we specified one
-    return _fetch_distribution(container_dir,
+    cont = _fetch_distribution(container_dir,
                                proot_distro,
                                distro_config)
+
+    def _minimize_ubuntu(cont):
+        """Reduce the install footprint of ubuntu as much as possible."""
+        required_packages = {
+            "precise": set([
+                "apt",
+                "base-files",
+                "base-passwd",
+                "bash",
+                "bsdutils",
+                "coreutils",
+                "dash",
+                "debconf",
+                "debianutils",
+                "diffutils",
+                "dpkg",
+                "findutils",
+                "gcc-4.6-base",
+                "gnupg",
+                "gpgv",
+                "grep",
+                "gzip",
+                "libacl1",
+                "libapt-pkg4.12",
+                "libattr1",
+                "libbz2-1.0",
+                "libc-bin",
+                "libc6",
+                "libdb5.1",
+                "libffi6",
+                "libgcc1",
+                "liblzma5",
+                "libpam-modules",
+                "libpam-modules-bin",
+                "libpam-runtime",
+                "libpam0g",
+                "libreadline6",
+                "libselinux1",
+                "libstdc++6",
+                "libtinfo5",
+                "libusb-0.1-4",
+                "makedev",
+                "mawk",
+                "multiarch-support",
+                "perl-base",
+                "readline-common",
+                "sed",
+                "sensible-utils",
+                "tar",
+                "tzdata",
+                "ubuntu-keyring",
+                "xz-utils",
+                "zlib1g"
+            ]),
+            "trusty": set([
+                "apt",
+                "base-files",
+                "base-passwd",
+                "bash",
+                "bsdutils",
+                "coreutils",
+                "dash",
+                "debconf",
+                "debianutils",
+                "diffutils",
+                "dh-python",
+                "dpkg",
+                "findutils",
+                "gcc-4.8-base",
+                "gcc-4.9-base",
+                "gnupg",
+                "gpgv",
+                "grep",
+                "gzip",
+                "libacl1",
+                "libapt-pkg4.12",
+                "libaudit1",
+                "libaudit-common",
+                "libattr1",
+                "libbz2-1.0",
+                "libc-bin",
+                "libc6",
+                "libcap2",
+                "libdb5.3",
+                "libdebconfclient0",
+                "libexpat1",
+                "libmpdec2",
+                "libffi6",
+                "libgcc1",
+                "liblzma5",
+                "libncursesw5",
+                "libpcre3",
+                "libpam-modules",
+                "libpam-modules-bin",
+                "libpam-runtime",
+                "libpam0g",
+                "libpython3-stdlib",
+                "libpython3.4-stdlib",
+                "libpython3",
+                "libpython3-minimal",
+                "libpython3.4",
+                "libpython3.4-minimal",
+                "libreadline6",
+                "libselinux1",
+                "libssl1.0.0",
+                "libstdc++6",
+                "libsqlite3-0",
+                "libtinfo5",
+                "libusb-0.1-4",
+                "lsb-release",
+                "makedev",
+                "mawk",
+                "mime-support",
+                "multiarch-support",
+                "perl-base",
+                "python3",
+                "python3-minimal",
+                "python3.4",
+                "python3.4-minimal",
+                "readline-common",
+                "sed",
+                "sensible-utils",
+                "tar",
+                "tzdata",
+                "ubuntu-keyring",
+                "xz-utils",
+                "zlib1g"
+            ])
+        }
+
+        os.environ["SUDO_FORCE_REMOVE"] = "yes"
+        os.environ["DEBIAN_FRONTEND"] = "noninteractive"
+
+        pkgs = set(cont.execute(["dpkg-query",
+                                 "-Wf",
+                                 "${Package} "])[1].split(" "))
+        release = distro_config["release"]
+        remove = [l for l in list(pkgs ^ required_packages[release]) if len(l)]
+
+        if len(remove):
+            cont.execute_success(["dpkg",
+                                  "--purge",
+                                  "--force-all"] + remove,
+                                 minimal_bind=True)
+
+        with open(os.path.join(get_dir_for_distro(container_dir,
+                                                  distro_config),
+                               "etc",
+                               "apt",
+                               "apt.conf.d",
+                               "99container"), "w") as apt_config:
+            apt_config.write("\n".join([
+                "APT::Install-Recommends \"0\";",
+                "APT::Install-Suggests \"0\";"
+            ]))
+
+    minimize_actions = defaultdict(lambda: lambda c: None,
+                                   Ubuntu=_minimize_ubuntu)
+    minimize_actions[distro_config["distro"]](cont)
+
+    return cont
 
 
 def _info_with_arch_to_config(info, arch):

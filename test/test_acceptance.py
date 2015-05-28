@@ -258,7 +258,6 @@ class ContainerInspectionTestCase(TestCase):
 
 QEMU_ARCHITECTURES = [
     "arm",
-    "armeb",
     "i386",
     "ppc",
     "x86_64"

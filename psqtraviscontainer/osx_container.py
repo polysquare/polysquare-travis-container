@@ -48,13 +48,15 @@ class OSXContainer(container.AbstractContainer):
         self._prefix = homebrew_distribution
         self._pkgsys = pkg_sys_constructor(self)
 
-    def _subprocess_popen_arguments(self, argv):
+    def _subprocess_popen_arguments(self, argv, **kwargs):
         """For native arguments argv, return AbstractContainer.PopenArguments.
 
         This returned tuple will have no environment variables set, but the
         proot command to enter this container will be prepended to the
         argv provided.
         """
+        del kwargs
+
         popen_args = self.__class__.PopenArguments
         popen_env = {
             "PATH": os.path.join(self._prefix, "bin"),
@@ -66,6 +68,10 @@ class OSXContainer(container.AbstractContainer):
     def _package_system(self):
         """Return package system for this distribution."""
         return self._pkgsys
+
+    def clean(self):
+        """Clean out this container to prepare it for caching."""
+        pass
 
 
 def _extract_archive(archive_file, container_folder):
