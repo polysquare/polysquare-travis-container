@@ -31,7 +31,9 @@ def updated_environ(prepend):
     """Context with prepend added to os.environ."""
     env = os.environ.copy()
     for key, value in prepend.items():
-        env[key] = "{0}:{1}".format(value, env.get(key, ""))
+        env[key] = "{0}{1}{2}".format(value,
+                                      os.pathsep,
+                                      env.get(key, ""))
 
     old_environ = os.environ
     os.environ = env
