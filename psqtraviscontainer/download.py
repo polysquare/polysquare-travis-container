@@ -11,13 +11,15 @@ import sys
 
 from termcolor import colored
 
-from urlgrabber.grabber import URLGrabber
 
-from urlgrabber.progress import TextMeter
-
-
+# Only import urlgrabber when actually calling download_file,
+# as urlgrabber is not supported on Windows.
 def download_file(url, filename=None):
     """Download the file at url and store it at filename."""
+    from urlgrabber.grabber import URLGrabber
+
+    from urlgrabber.progress import TextMeter
+
     sys.stdout.write(colored("-> Downloading {0}\n".format(url),
                              "blue",
                              attrs=["bold"]))
