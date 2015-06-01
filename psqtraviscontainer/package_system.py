@@ -182,3 +182,26 @@ class Brew(PackageSystem):
         _run_task(self._executor,
                   """Install {0}""".format(str(package_names)),
                   ["brew", "install"] + package_names)
+
+
+class Choco(PackageSystem):
+
+    """Chocolatey packaging system for Windows."""
+
+    def __init__(self, executor):
+        """Initialize choco for executor."""
+        super(Choco, self).__init__()
+        self._executor = executor
+
+    def add_repositories(self, repos):
+        """Add repositories as specified at repos.
+
+        This function doesn't do anything on Choco at the moment.
+        """
+        pass
+
+    def install_packages(self, package_names):
+        """Install all packages in list package_names."""
+        _run_task(self._executor,
+                  """Install {0}""".format(str(package_names)),
+                  ["choco", "install", "-fy", "-m"] + package_names)
