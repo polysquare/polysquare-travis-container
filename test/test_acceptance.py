@@ -332,6 +332,10 @@ PLATFORM_PROGRAM_MAPPINGS = {
     "Darwin": {
         "0": ["true"],
         "1": ["false"]
+    },
+    "Windows": {
+        "0": ["python", "-c", "import sys;sys.exit(0);"],
+        "1": ["python", "-c", "import sys;sys.exit(1);"]
     }
 }
 
@@ -494,7 +498,12 @@ _DISTRO_INFO = {
                                     "lib64/libaio.so.1.0.1"]),
     "OSX": _DistroPackage(package="xz",
                           repo=[],
-                          files=["bin/xz"])
+                          files=["bin/xz"]),
+    "Windows": _DistroPackage(package="cmake.portable",
+                              repo=[],
+                              files=["lib/cmake.portable.3.2.3/"
+                                     "tools/cmake-3.2.3-win32-x86/bin/"
+                                     "cmake.exe"])
 }
 
 
