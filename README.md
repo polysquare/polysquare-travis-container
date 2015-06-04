@@ -1,11 +1,27 @@
 Polysquare Travis Container
 ===========================
 
-Creates a container to install a mini-distribution without root access on the
-Travis-CI container based infrastructure. The magic is done by combining
-[`proot`](http://proot.me) and `qemu-user-mode`, which "fakes" the user-id to
-zero and redirects rootfs access to our container. This works for most
-applications.
+Creates a self-contained package-management installation, without root access.
+
+This allows you to install a pre-defined set of packages to a directory and
+then execute commands using the packages installed in that directory.
+
+Supports Windows, OS X and Linux.
+
+On Windows and OS X, local versions of chocolatey and brew are installed
+respectively, with packages installing to the specified folder. Commands
+are executed with environment variables set such that the locally
+installed packages will be used by any software built or installed
+using the `psq-travis-container-exec` wrapper. Only the host architecture
+is supported.
+
+On Linux, [`proot`](http://proot.me) is used to "containerize" a downloaded
+linux distribution, where the package manage operates only on the directory
+in which the downloaded linux distribution exists. This allows you to
+install packages using `apt-get` or `yum` without touching other
+system files. `proot` allow allows for different architectures to be
+specified as well, which are emulated transparently using the
+`qemu-user-mode` tool.
 
 Status
 ------
@@ -111,7 +127,7 @@ To run a command inside a container, use `psq-travis-container-exec`:
 
     optional arguments:
       -h, --help            show this help message and exit
-      --distro {Fedora,Debian,Ubuntu}
+      --distro {Fedora,Debian,Ubuntu,Windows,OSX}
                             Distribution name to create container of
                             [env var: CONTAINER_DISTRO]
       --release RELEASE     Distribution release to create container of
@@ -128,7 +144,4 @@ inside travis.
 
 The `--container`, `--release` and `--arch` options are used to select a
 pre-existing distribution container set up with `psq-travis-container-create`.
-
-If executables are of a different architecture to the host architecture, they
-will automatically be emulated with `qemu` for the target architecture.
 
