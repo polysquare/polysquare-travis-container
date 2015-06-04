@@ -10,9 +10,9 @@ applications.
 Status
 ------
 
-| Travis CI | Coverage |
-|:---------:|:--------:|
-|[![Travis](https://travis-ci.org/polysquare/polysquare-travis-container.svg?branch=master)](https://travis-ci.org/polysquare/polysquare-travis-container)|[![Coverage](https://coveralls.io/repos/polysquare/polysquare-travis-container/badge.png?branch=master)](https://coveralls.io/r/polysquare/polysquare-travis-container?branch=master)|
+| Travis CI | AppVeyor | Coverage |
+|:---------:|:--------:|:--------:|
+|[![Travis](https://travis-ci.org/polysquare/polysquare-travis-container.svg?branch=master)](https://travis-ci.org/polysquare/polysquare-travis-container)|[![AppVeyor](https://ci.appveyor.com/api/projects/status/aqug38pkrai0guq0/branch/master?svg=true)](https://ci.appveyor.com/project/smspillaz/polysquare-travis-container-vd3yj/branch/master)|[![Coverage](https://coveralls.io/repos/polysquare/polysquare-travis-container/badge.png?branch=master)](https://coveralls.io/r/polysquare/polysquare-travis-container?branch=master)|
 
 Caveats
 -------
