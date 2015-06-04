@@ -57,7 +57,11 @@ Creating a container
 
 Containers can be created with `psq-travis-container-create`:
 
-    usage: psq-travis-container-create [-h] [--distro {Fedora,Debian,Ubuntu}]
+    usage: psq-travis-container-create [-h] [--distro {Fedora,
+                                                       Debian,
+                                                       Ubuntu,
+                                                       Windows,
+                                                       OSX}]
                                        [--release RELEASE]
                                        [--arch {ppc,x86_64,x86,arm}]
                                        [--repositories REPOSITORIES]
@@ -73,7 +77,7 @@ Containers can be created with `psq-travis-container-create`:
 
     optional arguments:
       -h, --help            show this help message and exit
-      --distro {Fedora,Debian,Ubuntu}
+      --distro {Fedora,Debian,Ubuntu,Windows,OSX}
                             Distribution name to create container of
                             [env var: CONTAINER_DISTRO]
       --release RELEASE     Distribution release to create container of
@@ -112,7 +116,11 @@ Using a container
 
 To run a command inside a container, use `psq-travis-container-exec`:
 
-    usage: psq-travis-container-exec [-h] [--distro {Fedora,Debian,Ubuntu}]
+    usage: psq-travis-container-exec [-h] [--distro {Fedora,
+                                                     Debian,
+                                                     Ubuntu,
+                                                     Windows,
+                                                     OSX}]
                                      [--release RELEASE]
                                      [--arch {ppc,x86_64,x86,arm}] --cmd
                                      [CMD [CMD ...]]
