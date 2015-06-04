@@ -38,9 +38,11 @@ def _print_distribution_details(details):
     }
 
     output = bytearray()
-    output += colored("""\nConfigured Distribution:\n""",
-                      "white",
-                      attrs=["underline"]).encode()
+    output += ("\n" +
+               colored("""Configured Distribution:""",
+                       "white",
+                       attrs=["underline"]) +
+               "\n").encode()
 
     for key, value in details.items():
         if key in distro_pretty_print_map:

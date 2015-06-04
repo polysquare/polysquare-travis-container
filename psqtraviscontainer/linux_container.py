@@ -24,8 +24,6 @@ from contextlib import closing
 
 from itertools import chain
 
-from debian import arfile
-
 from psqtraviscontainer import architecture
 from psqtraviscontainer import constants
 from psqtraviscontainer import container
@@ -179,6 +177,9 @@ def _fetch_proot_distribution(container_root):
 
     Touches /.have-proot-distribution when complete
     """
+    # We may not have python-debian installed on all platforms
+    from debian import arfile  # suppress(import-error)
+
     path_to_proot_check = constants.have_proot_distribution(container_root)
     path_to_proot_dir = constants.proot_distribution_dir(container_root)
 
