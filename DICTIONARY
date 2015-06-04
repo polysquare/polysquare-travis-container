@@ -26,6 +26,7 @@ getter
 Homebrew
 homebrew
 launchpad
+OSX
 overridable
 PermissionError
 _POLYSQUARE_TRAVIS_CONTAINER_TEST_CACHE_DIR
@@ -53,6 +54,7 @@ rootfs
 subdirectory
 subprocess
 timestamp
+Windows
 Ubuntu
 uid
 untar
