@@ -114,7 +114,9 @@ def _fetch_homebrew(container_dir, distro_config):
                     files = [os.path.join(first, p) for p in os.listdir(first)]
                     for filename in files:
                         try:
-                            shutil.move(filename, container_dir)
+                            filename_base = os.path.basename(filename)
+                            shutil.move(filename, os.path.join(container_dir,
+                                                               filename_base))
                         except IOError:  # suppress(pointless-except)
                             # Ignore stuff that can't be moved for whatever
                             # reason. These are all files that generally
