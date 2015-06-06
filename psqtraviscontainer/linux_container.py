@@ -321,67 +321,6 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
                     _extract_distro_archive(archive_file,
                                             path_to_distro_folder)
 
-    # Container isn't safe to use until we've either verified that the
-    # path to the distro folder exists or we've downloaded a distro into it
-    linux_cont = LinuxContainer(proot_distro,
-                                path_to_distro_folder,
-                                details["release"],
-                                details["arch"],
-                                details["pkgsys"])
-
-    try:
-        os.stat(path_to_distro_folder)
-        printer.unicode_safe(colored(u"""\N{check mark}  """
-                                     u"""Using pre-existing folder for """
-                                     u"""distro {0} {1} ({2})\n"""
-                                     """""".format(details["distro"],
-                                                   details["release"],
-                                                   details["arch"]),
-                                     "green",
-                                     attrs=["bold"]))
-    except OSError:
-        # Download the distribution tarball in the distro dir
-        _download_distro(details, path_to_distro_folder)
-
-    return linux_cont
-
-
-def container_for_directory(container_dir, distro_config):
-    """Return an existing LinuxContainer at container_dir for distro_config.
-
-    Also take into account arguments in result to look up the the actual
-    directory for this distro.
-    """
-    path_to_distro_folder = get_dir_for_distro(container_dir,
-                                               distro_config)
-
-    required_entities = [
-        constants.have_proot_distribution(container_dir),
-        path_to_distro_folder
-    ]
-
-    for entity in required_entities:
-        util.check_if_exists(entity)
-
-    proot_distribution = proot_distro_from_container(container_dir)
-
-    return LinuxContainer(proot_distribution,
-                          path_to_distro_folder,
-                          distro_config["release"],
-                          distro_config["arch"],
-                          distro_config["pkgsys"])
-
-
-def create(container_dir, distro_config):
-    """Create a container using proot."""
-    # First fetch a proot distribution if we don't already have one
-    proot_distro = _fetch_proot_distribution(container_dir)
-
-    # Now fetch the distribution tarball itself, if we specified one
-    cont = _fetch_distribution(container_dir,
-                               proot_distro,
-                               distro_config)
-
     def _minimize_ubuntu(cont):
         """Reduce the install footprint of ubuntu as much as possible."""
         required_packages = {
@@ -517,7 +456,7 @@ def create(container_dir, distro_config):
         pkgs = set(cont.execute(["dpkg-query",
                                  "-Wf",
                                  "${Package} "])[1].split(" "))
-        release = distro_config["release"]
+        release = details["release"]
         remove = [l for l in list(pkgs ^ required_packages[release]) if len(l)]
 
         if len(remove):
@@ -526,8 +465,8 @@ def create(container_dir, distro_config):
                                   "--force-all"] + remove,
                                  minimal_bind=True)
 
-        with open(os.path.join(get_dir_for_distro(container_dir,
-                                                  distro_config),
+        with open(os.path.join(get_dir_for_distro(container_root,
+                                                  details),
                                "etc",
                                "apt",
                                "apt.conf.d",
@@ -537,9 +476,72 @@ def create(container_dir, distro_config):
                 "APT::Install-Suggests \"0\";"
             ]))
 
-    minimize_actions = defaultdict(lambda: lambda c: None,
-                                   Ubuntu=_minimize_ubuntu)
-    minimize_actions[distro_config["distro"]](cont)
+    # Container isn't safe to use until we've either verified that the
+    # path to the distro folder exists or we've downloaded a distro into it
+    linux_cont = LinuxContainer(proot_distro,
+                                path_to_distro_folder,
+                                details["release"],
+                                details["arch"],
+                                details["pkgsys"])
+
+    try:
+        os.stat(path_to_distro_folder)
+        printer.unicode_safe(colored(u"""\N{check mark}  """
+                                     u"""Using pre-existing folder for """
+                                     u"""distro {0} {1} ({2})\n"""
+                                     """""".format(details["distro"],
+                                                   details["release"],
+                                                   details["arch"]),
+                                     "green",
+                                     attrs=["bold"]))
+    except OSError:
+        # Download the distribution tarball in the distro dir
+        _download_distro(details, path_to_distro_folder)
+
+        # Minimize the installed distribution, but only when it
+        # was just initially downloaded
+        minimize_actions = defaultdict(lambda: lambda c: None,
+                                       Ubuntu=_minimize_ubuntu)
+        minimize_actions[details["distro"]](linux_cont)
+
+    return linux_cont
+
+
+def container_for_directory(container_dir, distro_config):
+    """Return an existing LinuxContainer at container_dir for distro_config.
+
+    Also take into account arguments in result to look up the the actual
+    directory for this distro.
+    """
+    path_to_distro_folder = get_dir_for_distro(container_dir,
+                                               distro_config)
+
+    required_entities = [
+        constants.have_proot_distribution(container_dir),
+        path_to_distro_folder
+    ]
+
+    for entity in required_entities:
+        util.check_if_exists(entity)
+
+    proot_distribution = proot_distro_from_container(container_dir)
+
+    return LinuxContainer(proot_distribution,
+                          path_to_distro_folder,
+                          distro_config["release"],
+                          distro_config["arch"],
+                          distro_config["pkgsys"])
+
+
+def create(container_dir, distro_config):
+    """Create a container using proot."""
+    # First fetch a proot distribution if we don't already have one
+    proot_distro = _fetch_proot_distribution(container_dir)
+
+    # Now fetch the distribution tarball itself, if we specified one
+    cont = _fetch_distribution(container_dir,
+                               proot_distro,
+                               distro_config)
 
     return cont
 
