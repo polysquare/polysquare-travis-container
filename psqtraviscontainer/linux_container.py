@@ -134,7 +134,14 @@ class LinuxContainer(container.AbstractContainer):
         if our_architecture != target_architecture:
             proot_command += ["-q", self._proot_distro.qemu(self._arch)]
 
-        return popen_args(env=dict(), argv=proot_command + argv)
+        # Favor distribution's own environment variables
+        with open(os.path.join(self._distro_dir, "etc", "environment")) as env:
+            prepend_env = {l.split("=")[0] :
+                           "".join([c for c in l.split("=")[1]
+                                   if c != "\""]).strip()
+                           for l in env.readlines()}
+
+        return popen_args(env=prepend_env, argv=proot_command + argv)
 
     def _package_system(self):
         """Return package system for this distribution."""
