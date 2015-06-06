@@ -66,7 +66,8 @@ setup(name="psqtraviscontainer",
       entry_points={
           "console_scripts": [
               "psq-travis-container-create=psqtraviscontainer.create:main",
-              "psq-travis-container-exec=psqtraviscontainer.use:main"
+              "psq-travis-container-exec=psqtraviscontainer.use:main",
+              "psq-travis-container-get-root=psqtraviscontainer.rootdir:main"
           ]
       },
       test_suite="nose.collector",

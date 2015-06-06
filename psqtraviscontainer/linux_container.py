@@ -136,12 +136,16 @@ class LinuxContainer(container.AbstractContainer):
 
         # Favor distribution's own environment variables
         with open(os.path.join(self._distro_dir, "etc", "environment")) as env:
-            prepend_env = {l.split("=")[0] :
+            prepend_env = {l.split("=")[0]:
                            "".join([c for c in l.split("=")[1]
                                    if c != "\""]).strip()
                            for l in env.readlines()}
 
         return popen_args(env=prepend_env, argv=proot_command + argv)
+
+    def _root_filesystem_directory(self):
+        """Return directory on parent filesystem where our root is located."""
+        return self._distro_dir
 
     def _package_system(self):
         """Return package system for this distribution."""
