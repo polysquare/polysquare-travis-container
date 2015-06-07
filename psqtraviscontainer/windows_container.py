@@ -62,6 +62,10 @@ class WindowsContainer(container.AbstractContainer):
         }
         return popen_args(env=popen_env, argv=argv)
 
+    def _root_filesystem_directory(self):
+        """Return directory on parent filesystem where our root is located."""
+        return self._prefix
+
     def _package_system(self):
         """Return package system for this distribution."""
         return self._pkgsys

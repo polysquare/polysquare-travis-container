@@ -95,6 +95,10 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
 
         self.clean()
 
+    def root_filesystem_directory(self):
+        """Return absolute and real path to installed packages."""
+        return os.path.realpath(self._root_filesystem_directory())
+
     def install_packages(self, repositories_path, packages_path):
         """Install packages and set up repositories as configured.
 
