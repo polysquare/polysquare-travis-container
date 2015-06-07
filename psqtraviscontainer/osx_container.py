@@ -101,12 +101,12 @@ def _fetch_homebrew(container_dir, distro_config):
         os.stat(os.path.join(container_dir, "bin", "brew"))
         return container_for_directory(container_dir, distro_config)
     except OSError:
-        with tempdir.TempDir() as download_dir:
-            with directory.Navigation(download_dir):
-                with TemporarilyDownloadedFile(_HOMEBREW_URL) as archive_file:
-                    _extract_archive(archive_file, container_dir)
-                    first = os.path.join(container_dir,
-                                         os.listdir(container_dir)[0])
+        with directory.Navigation(tempdir.TempDir().name):
+            with TemporarilyDownloadedFile(_HOMEBREW_URL) as archive_file:
+                with directory.Navigation(tempdir.TempDir().name) as extract:
+                    _extract_archive(archive_file, extract)
+                    first = os.path.join(extract,
+                                         os.listdir(extract)[0])
                     files = [os.path.join(first, p) for p in os.listdir(first)]
                     for filename in files:
                         try:
