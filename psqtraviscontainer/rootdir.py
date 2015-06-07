@@ -13,16 +13,10 @@ from psqtraviscontainer import common_options
 from psqtraviscontainer import distro
 
 
-def _parse_arguments(arguments=None):
-    """Return a parser context result."""
-    parser = common_options.get_parser("Use")
-    return parser.parse_args(arguments)
-
-
 def main(arguments=None):
     """Get container and print root filesystem directory."""
     parser = common_options.get_parser("""Get root directory for""")
-    result = parser.parse_arguments(arguments)
+    result = parser.parse_args(arguments)
     container_dir = os.path.realpath(result.containerdir)
 
     selected_distro = distro.lookup(vars(result))
