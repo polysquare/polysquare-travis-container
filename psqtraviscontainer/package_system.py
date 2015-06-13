@@ -173,9 +173,12 @@ class Brew(PackageSystem):
     def add_repositories(self, repos):
         """Add repositories as specified at repos.
 
-        This function doesn't do anything on Brew at the moment.
+        Adds repositories using brew tap.
         """
-        pass
+        for repo in repos:
+            _run_task(self._executor,
+                      """Adding repository {0}""".format(repo),
+                      ["brew", "tap", repo])
 
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
