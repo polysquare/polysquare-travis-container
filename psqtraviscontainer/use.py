@@ -42,10 +42,14 @@ def main(arguments=None):
     selected_distro = distro.lookup(vars(argparse_result))
     with selected_distro["info"].get_func(container_dir,
                                           selected_distro) as container:
-        result, stdout, stderr = container.execute(command)
+        if argparse_result.show_output:
+            execute_kwargs = {
+                "stderr": None,
+                "stdout": None
+            }
+        else:
+            execute_kwargs = dict()
 
-    if argparse_result.show_output:
-        sys.stdout.write(stdout)
-        sys.stderr.write(stderr)
+        result = container.execute(command, **execute_kwargs)[0]
 
     return result
