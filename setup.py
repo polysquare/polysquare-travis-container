@@ -17,7 +17,7 @@ if platform.system() != "Windows":
     ])
 
 setup(name="psqtraviscontainer",
-      version="0.0.4",
+      version="0.0.5",
       description="Polysquare Travis-CI Container Root",
       long_description_markdown_filename="README.md",
       author="Sam Spilsbury",
