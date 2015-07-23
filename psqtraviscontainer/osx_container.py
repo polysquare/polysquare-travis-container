@@ -13,6 +13,8 @@ import shutil
 
 import tarfile
 
+from clint.textui import colored
+
 from psqtraviscontainer import container
 from psqtraviscontainer import directory
 from psqtraviscontainer import distro
@@ -23,8 +25,6 @@ from psqtraviscontainer import util
 from psqtraviscontainer.download import TemporarilyDownloadedFile
 
 import tempdir
-
-from termcolor import colored
 
 DistroInfo = distro.DistroInfo
 
@@ -84,7 +84,7 @@ def _extract_archive(archive_file, container_folder):
         msg = ("""-> Extracting """
                """{0}\n""").format(archive_file.path())
         extract_members = archive.getmembers()
-        printer.unicode_safe(colored(msg, "magenta", attrs=["bold"]))
+        printer.unicode_safe(colored.magenta(msg, bold=True))
         archive.extractall(members=extract_members, path=container_folder)
 
 

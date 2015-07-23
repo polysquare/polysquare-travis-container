@@ -24,6 +24,8 @@ from contextlib import closing
 
 from itertools import chain
 
+from clint.textui import colored
+
 from psqtraviscontainer import architecture
 from psqtraviscontainer import constants
 from psqtraviscontainer import container
@@ -36,8 +38,6 @@ from psqtraviscontainer import util
 from psqtraviscontainer.download import TemporarilyDownloadedFile
 
 import tempdir
-
-from termcolor import colored
 
 _PROOT_URL_BASE = "http://static.proot.me/proot-{arch}"
 _QEMU_URL_BASE = ("http://download.opensuse.org/repositories"
@@ -209,10 +209,9 @@ def _fetch_proot_distribution(container_root):
 
     def _extract_qemu(qemu_deb_path, qemu_temp_dir):
         """Extract qemu."""
-        printer.unicode_safe(colored(("""-> Extracting {0}\n"""
-                                     """""").format(qemu_deb_path),
-                                     "magenta",
-                                     attrs=["bold"]))
+        printer.unicode_safe(colored.magenta(("""-> Extracting {0}\n"""
+                                              """""").format(qemu_deb_path),
+                                             bold=True))
         archive = arfile.ArFile(qemu_deb_path)
         _extract_deb_data(archive, qemu_temp_dir)
 
@@ -255,17 +254,15 @@ def _fetch_proot_distribution(container_root):
 
     try:
         os.stat(path_to_proot_check)
-        printer.unicode_safe(colored(u"""-> """
-                                     """Using pre-existing proot """
-                                     """distribution\n""",
-                                     "green",
-                                     attrs=["bold"]))
+        printer.unicode_safe(colored.green(u"""-> """
+                                           """Using pre-existing proot """
+                                           """distribution\n""",
+                                           bold=True))
 
     except OSError:
-        printer.unicode_safe(colored(("""Creating distribution of proot """
-                                      """in {0}\n""").format(container_root),
-                                     "yellow",
-                                     attrs=["bold"]))
+        create_msg = """Creating distribution of proot in {}\n"""
+        printer.unicode_safe(colored.yellow(create_msg.format(container_root),
+                                            bold=True))
 
         # Distro check does not exist - create the ./_proot directory
         # and download files for this architecture
@@ -278,12 +275,11 @@ def _fetch_proot_distribution(container_root):
         with open(path_to_proot_check, "w+") as check_file:
             check_file.write("done")
 
-        printer.unicode_safe(colored(u"""\N{check mark} """
-                                     u"""Successfully installed proot """
-                                     u"""distribution to """
-                                     u"""{0}\n""".format(container_root),
-                                     "green",
-                                     attrs=["bold"]))
+        printer.unicode_safe(colored.green(u"""\N{check mark} """
+                                           u"""Successfully installed proot """
+                                           u"""distribution to """
+                                           u"""{}\n""".format(container_root),
+                                           bold=True))
 
     return proot_distro_from_container(container_root)
 
@@ -295,7 +291,7 @@ def _extract_distro_archive(distro_archive_file, distro_folder):
                """{0}\n""").format(distro_archive_file.path())
         extract_members = [m for m in archive.getmembers()
                            if not m.isdev()]
-        printer.unicode_safe(colored(msg, "magenta", attrs=["bold"]))
+        printer.unicode_safe(colored.magenta(msg, bold=True))
         archive.extractall(members=extract_members, path=distro_folder)
 
         # Set the permissions of the extracted archive so we can delete it
@@ -498,14 +494,11 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
 
     try:
         os.stat(path_to_distro_folder)
-        printer.unicode_safe(colored(u"""\N{check mark}  """
-                                     u"""Using pre-existing folder for """
-                                     u"""distro {0} {1} ({2})\n"""
-                                     """""".format(details["distro"],
-                                                   details["release"],
-                                                   details["arch"]),
-                                     "green",
-                                     attrs=["bold"]))
+        use_existing_msg = (u"""\N{check mark} Using existing folder for """
+                            u"""proot distro """
+                            u"""{details} {release} {arch}\n""")
+        printer.unicode_safe(colored.green(use_existing_msg.format(**details),
+                                           bold=True))
     except OSError:
         # Download the distribution tarball in the distro dir
         _download_distro(details, path_to_distro_folder)

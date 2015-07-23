@@ -9,25 +9,26 @@ import os
 
 import sys
 
-from clint.textui import progress
+from clint.textui import colored, progress
 
 import requests
-
-from termcolor import colored
 
 
 def download_file(url, filename=None):
     """Download the file at url and store it at filename."""
-    sys.stdout.write(colored("-> Downloading {0}\n".format(url),
-                             "blue",
-                             attrs=["bold"]))
+    basename = os.path.basename(filename or url)
+    msg = """Downloading {dest} (from {source})""".format(source=url,
+                                                          dest=basename)
+    sys.stdout.write(str(colored.blue(msg, bold=True)))
+    sys.stdout.write("\n")
     request = requests.get(url, stream=True)
     length = int(request.headers.get("content-length"))
     with open(filename or os.path.basename(url), "wb") as downloaded_file:
         chunk_size = 1024
         total = length / chunk_size + 1
         for chunk in progress.bar(request.iter_content(chunk_size=chunk_size),
-                                  expected_size=total):
+                                  expected_size=total,
+                                  label=basename):
             downloaded_file.write(chunk)
             downloaded_file.flush()
 
