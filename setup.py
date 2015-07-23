@@ -10,16 +10,11 @@ import platform
 from setuptools import find_packages, setup
 
 INSTALL_EXTRAS = []
-DEPENDENCY_LINKS = []
 
 if platform.system() != "Windows":
     INSTALL_EXTRAS.extend([
-        "urlgrabber==3.10.1",
-        "pycurl",
         "python-debian"
     ])
-    DEPENDENCY_LINKS.append("https://github.com/smspillaz/urlgrabber/"
-                            "tarball/master#egg=urlgrabber-3.10.1")
 
 setup(name="psqtraviscontainer",
       version="0.0.4",
@@ -38,11 +33,12 @@ setup(name="psqtraviscontainer",
       license="MIT",
       keywords="development travis",
       packages=find_packages(exclude=["test"]),
-      dependency_links=DEPENDENCY_LINKS,
-      install_requires=["configargparse",
+      install_requires=["clint",
+                        "colorama",
+                        "configargparse",
+                        "requests",
                         "six",
                         "shutilwhich",
-                        "colorama",
                         "tempdir",
                         "termcolor"] + INSTALL_EXTRAS,
       extras_require={

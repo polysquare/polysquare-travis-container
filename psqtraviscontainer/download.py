@@ -9,26 +9,29 @@ import os
 
 import sys
 
+from clint.textui import progress
+
+import requests
+
 from termcolor import colored
 
 
-# Only import urlgrabber when actually calling download_file,
-# as urlgrabber is not supported on Windows.
 def download_file(url, filename=None):
     """Download the file at url and store it at filename."""
-    # We may not have urlgrabber installed on all platforms
-    from urlgrabber.grabber import URLGrabber  # suppress(import-error)
-    from urlgrabber.progress import TextMeter  # suppress(import-error)
-
     sys.stdout.write(colored("-> Downloading {0}\n".format(url),
                              "blue",
                              attrs=["bold"]))
-    grabber = URLGrabber(timeout=10,
-                         progress_obj=TextMeter(fo=sys.stdout),
-                         retry=3)
-    grabbed_filename = grabber.urlgrab(str(url), filename=filename)
+    request = requests.get(url, stream=True)
+    length = int(request.headers.get("content-length"))
+    with open(filename or os.path.basename(url), "wb") as downloaded_file:
+        chunk_size = 1024
+        total = length / chunk_size + 1
+        for chunk in progress.bar(request.iter_content(chunk_size=chunk_size),
+                                  expected_size=total):
+            downloaded_file.write(chunk)
+            downloaded_file.flush()
 
-    return os.path.join(os.getcwd(), grabbed_filename)
+    return os.path.join(os.getcwd(), downloaded_file.name)
 
 
 class TemporarilyDownloadedFile(object):  # pylint:disable=R0903

@@ -33,8 +33,6 @@ Status
 Caveats
 -------
 
-Polysquare Travis Container will not run on `pypy` due to the use of `pycurl`.
-
 64 bit executables cannot be emulated on a 32 bit architecture.
 
 Installation
@@ -46,11 +44,7 @@ is not hosted on PyPI.
 Install it with:
 
     pip install \
-    https://github.com/polysquare/polysquare-travis-container/tarball/master \
-    --process-dependency-links
-
-At the moment, `--process-dependency-links` needs to be passed because this
-project uses a forked version of `urlgrabber`.
+    https://github.com/polysquare/polysquare-travis-container/tarball/master
 
 Creating a container
 --------------------
