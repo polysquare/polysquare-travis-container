@@ -157,6 +157,7 @@ class LinuxContainer(container.AbstractContainer):
 
         rmtree(os.path.join(self._distro_dir, "tmp"))
         rmtree(os.path.join(self._distro_dir, "var", "cache", "apt"))
+        rmtree(os.path.join(self._distro_dir, "var", "run"))
         rmtree(os.path.join(self._distro_dir, "usr", "share", "doc"))
         rmtree(os.path.join(self._distro_dir, "usr", "share", "locale"))
         rmtree(os.path.join(self._distro_dir, "usr", "share", "man"))
