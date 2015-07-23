@@ -17,6 +17,6 @@ def unicode_safe(text):
     if (not getattr(sys.stdout, "isatty", None) or
             not sys.stdout.isatty() or
             platform.system() == "Windows"):
-        text = "".join([c for c in text if ord(c) < 128])
+        text = "".join([c for c in str(text) if ord(c) < 128])
 
-    sys.stdout.write(text)
+    sys.stdout.write(str(text))

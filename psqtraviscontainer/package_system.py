@@ -13,14 +13,14 @@ import tempfile
 
 from collections import namedtuple
 
+from clint.textui import colored
+
 from psqtraviscontainer import directory
 from psqtraviscontainer import download
 
 import six
 
 import tempdir
-
-from termcolor import colored
 
 _UBUNTU_MAIN_ARCHS = ["i386", "amd64"]
 _UBUNTU_PORT_ARCHS = ["armhf", "arm64", "powerpc", "ppc64el"]
@@ -30,7 +30,7 @@ _UBUNTU_PORT_ARCHIVE = "http://ports.ubuntu.com/ubuntu-ports/"
 
 def _run_task(executor, description, argv):
     """Run command through executor argv and prints description."""
-    sys.stdout.write(colored("-> {0}\n".format(description), "white"))
+    sys.stdout.write(str(colored.white("-> {0}\n".format(description))))
     executor.execute_success(argv)
 
 

@@ -14,20 +14,20 @@ requests redirected to the proot and believe that they are running as uid 0
 
 import os
 
+from clint.textui import colored
+
 from psqtraviscontainer import common_options
 from psqtraviscontainer import distro
 from psqtraviscontainer import printer
 
 from psqtraviscontainer.architecture import Alias
 
-from termcolor import colored
-
 
 def _print_distribution_details(details):
     """Print distribution details."""
     def _y_v(value):
         """Print value in distribution details."""
-        return colored(value, "yellow")
+        return colored.yellow(value)
 
     # Maps keys in configuration to a pretty-printable name.
     distro_pretty_print_map = {
@@ -39,9 +39,7 @@ def _print_distribution_details(details):
 
     output = bytearray()
     output += ("\n" +
-               colored("""Configured Distribution:""",
-                       "white",
-                       attrs=["underline"]) +
+               colored.white("""Configured Distribution:""", bold=True) +
                "\n").encode()
 
     for key, value in details.items():
@@ -98,11 +96,9 @@ def main(arguments=None):
                                              selected_distro) as container:
         container.install_packages(result.repositories, result.packages)
 
-    printer.unicode_safe(colored(u"""\N{check mark}  """
-                                 u"""Container has been set up """
-                                 u"""in {0}\n""".format(result.containerdir),
-                                 "green",
-                                 attrs=["bold"]))
+    msg = u"""\N{check mark} Container has been set up in {0.containerdir}\n"""
+    printer.unicode_safe(colored.green(msg.format(result),
+                                       bold=True))
 
 if __name__ == "__main__":
     main()

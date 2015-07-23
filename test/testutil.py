@@ -16,9 +16,9 @@ import sys
 
 from base64 import urlsafe_b64encode as b64
 
-from psqtraviscontainer.download import download_file as download_file_original
+from clint.textui import colored
 
-from termcolor import colored
+from psqtraviscontainer.download import download_file as download_file_original
 
 
 def download_file_cached(url, filename=None):
@@ -37,10 +37,8 @@ def download_file_cached(url, filename=None):
                                        b64(url.encode()).decode("ascii"))
 
         if os.path.exists(base64_filename):
-            sys.stdout.write(colored("""-> Downloading {0} """
-                                     """[found in cache]\n""".format(url),
-                                     "blue",
-                                     attrs=["bold"]))
+            msg = """Downloading {0} [found in cache]\n""".format(url)
+            sys.stdout.write(str(colored.blue(msg, bold=True)))
             shutil.copyfile(base64_filename, dest_filename)
         else:
             # Grab the url and then store the downloaded file in the cache.

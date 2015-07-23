@@ -40,9 +40,7 @@ proot
 psq
 psqtraviscontainer
 pychecker
-pycurl
 PyPI
-pypy
 matcher
 metaclass
 metadata
