@@ -45,7 +45,7 @@ setup(name="psqtraviscontainer",
               "testtools",
               "shutilwhich",
               "nose",
-              "nose-parameterized",
+              "nose-parameterized>=0.0.5",
               "mock",
               "setuptools-green",
               "tempdir"

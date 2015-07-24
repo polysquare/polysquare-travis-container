@@ -264,6 +264,13 @@ QEMU_ARCHITECTURES = [
 ]
 
 
+def _format_arch(func, num, params):
+    """Format docstring for TestProotDistribution parameterized tests."""
+    del num
+
+    return func.__doc__.format(arch=params[0][0])
+
+
 class TestProotDistribution(ContainerInspectionTestCase):
 
     """Tests to inspect a proot distribution itself."""
@@ -294,18 +301,18 @@ class TestProotDistribution(ContainerInspectionTestCase):
         executable_mask = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
         self.assertTrue(stat_result.st_mode & executable_mask != 0)
 
-    @parameterized.expand(QEMU_ARCHITECTURES)
+    @parameterized.expand(QEMU_ARCHITECTURES, testcase_func_doc=_format_arch)
     def test_has_qemu_executables(self, arch):
-        """Check that we have a qemu executable {0}.""".format("qemu-" + arch)
+        """Check that we have a qemu executable qemu-{arch}."""
         cont = proot_distribution_dir(self.container_dir)
-        self.assertThat(os.path.join(cont, "bin/qemu-{0}".format(arch)),
+        self.assertThat(os.path.join(cont, "bin/qemu-{}".format(arch)),
                         FileExists())
 
-    @parameterized.expand(QEMU_ARCHITECTURES)
+    @parameterized.expand(QEMU_ARCHITECTURES, testcase_func_doc=_format_arch)
     def test_qemu_binary_is_executable(self, arch):
-        """Check that qemu binary {0} is executable.""".format("qemu-" + arch)
+        """Check that qemu binary qemu-{arch} is executable."""
         cont = proot_distribution_dir(self.container_dir)
-        proot_binary = os.path.join(cont, "bin/qemu-{0}".format(arch))
+        proot_binary = os.path.join(cont, "bin/qemu-{}".format(arch))
         stat_result = os.stat(proot_binary)
         executable_mask = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
         self.assertTrue(stat_result.st_mode & executable_mask != 0)
