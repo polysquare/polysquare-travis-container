@@ -6,6 +6,8 @@ cache:
 python:
 - '2.7'
 - '3.4'
+- 'pypy'
+- 'pypy3'
 install:
  - eval "$(curl -LSs --connect-timeout 2 --retry 100 public-travis-scripts.polysquare.org/bootstrap.py | python /dev/stdin -d $(pwd)/container -s container-setup.py -e bash -p /dev/stdout)"
 script:
