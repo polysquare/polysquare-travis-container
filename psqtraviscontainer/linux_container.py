@@ -496,7 +496,7 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
         os.stat(path_to_distro_folder)
         use_existing_msg = (u"""\N{check mark} Using existing folder for """
                             u"""proot distro """
-                            u"""{details} {release} {arch}\n""")
+                            u"""{distro} {release} {arch}\n""")
         printer.unicode_safe(colored.green(use_existing_msg.format(**details),
                                            bold=True))
     except OSError:
