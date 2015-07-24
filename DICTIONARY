@@ -13,6 +13,7 @@ CONTAINER_DISTRO
 CONTAINER_RELEASE
 Debian
 distro
+docstring
 dpkg
 eg
 env

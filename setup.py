@@ -17,7 +17,7 @@ if platform.system() != "Windows":
     ])
 
 setup(name="psqtraviscontainer",
-      version="0.0.5",
+      version="0.0.6",
       description="Polysquare Travis-CI Container Root",
       long_description_markdown_filename="README.md",
       author="Sam Spilsbury",
@@ -45,7 +45,7 @@ setup(name="psqtraviscontainer",
               "testtools",
               "shutilwhich",
               "nose",
-              "nose-parameterized",
+              "nose-parameterized>=0.0.5",
               "mock",
               "setuptools-green",
               "tempdir"
