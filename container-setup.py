@@ -8,8 +8,6 @@
 # See /LICENCE.md for Copyright information
 """Initial setup script specific to polysquare-ci-scripts."""
 
-import os
-
 
 def run(cont, util, shell, argv=list()):
     """Set up language runtimes and pass control to python project script."""
