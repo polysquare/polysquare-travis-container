@@ -26,9 +26,9 @@ specified as well, which are emulated transparently using the
 Status
 ------
 
-| Travis CI | AppVeyor | Coverage |
-|:---------:|:--------:|:--------:|
-|[![Travis](https://travis-ci.org/polysquare/polysquare-travis-container.svg?branch=master)](https://travis-ci.org/polysquare/polysquare-travis-container)|[![AppVeyor](https://ci.appveyor.com/api/projects/status/aqug38pkrai0guq0/branch/master?svg=true)](https://ci.appveyor.com/project/smspillaz/polysquare-travis-container-vd3yj/branch/master)|[![Coverage](https://coveralls.io/repos/polysquare/polysquare-travis-container/badge.png?branch=master)](https://coveralls.io/r/polysquare/polysquare-travis-container?branch=master)|
+| Travis CI (Ubuntu) | AppVeyor (Windows) | Coverage | PyPI | Licence |
+|--------------------|--------------------|----------|------|---------|
+|[![Travis](https://img.shields.io/travis/polysquare/polysquare-travis-container.svg)](http://travis-ci.org/polysquare/polysquare-travis-container)|[![AppVeyor](https://img.shields.io/appveyor/ci/smspillaz/polysquare-travis-container-vd3yj.svg)](https://ci.appveyor.com/project/smspillaz/polysquare-travis-container-vd3yj)|[![Coveralls](https://img.shields.io/coveralls/polysquare/polysquare-travis-container.svg)](http://coveralls.io/polysquare/polysquare-travis-container)|[![PyPIVersion](https://img.shields.io/pypi/v/polysquare-travis-container.svg)](https://pypi.python.org/pypi/polysquare-travis-container)[![PyPIPythons](https://img.shields.io/pypi/pyversions/polysquare-travis-container.svg)](https://pypi.python.org/pypi/polysquare-travis-container)|[![License](https://img.shields.io/github/license/polysquare/polysquare-travis-container.svg)](http://github.com/polysquare/polysquare-travis-container)|
 
 Caveats
 -------
@@ -38,13 +38,7 @@ Caveats
 Installation
 ------------
 
-`polysquare-travis-container` can be installed using using `pip`, although it
-is not hosted on PyPI.
-
-Install it with:
-
-    pip install \
-    https://github.com/polysquare/polysquare-travis-container/tarball/master
+`polysquare-travis-container` can be installed using using `pip` from PyPI
 
 Creating a container
 --------------------

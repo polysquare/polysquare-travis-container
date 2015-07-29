@@ -6,13 +6,29 @@ cache:
 python:
 - '2.7'
 - '3.4'
-- 'pypy'
-- 'pypy3'
+- pypy
+- pypy3
 install:
- - eval "$(curl -LSs --connect-timeout 2 --retry 100 public-travis-scripts.polysquare.org/bootstrap.py | python /dev/stdin -d $(pwd)/container -s container-setup.py -e bash -p /dev/stdout)"
+- eval "$(curl -LSs --connect-timeout 2 --retry 100 public-travis-scripts.polysquare.org/bootstrap.py
+  | python /dev/stdin -d $(pwd)/container -s container-setup.py -e bash -p /dev/stdout)"
 script:
- - polysquare_run check/python/check.py
+- polysquare_run check/python/check.py
 before_cache:
- - polysquare_cleanup
+- polysquare_cleanup
 after_success:
- - polysquare_run coverage/python/coverage.py
+- polysquare_run coverage/python/coverage.py
+before_deploy:
+- polysquare_run deploy/python/deploy.py
+env:
+  global:
+    secure: Qw1ZpPGW305MqXUGhj1luETKKluW0KXX/ZZ+q5ZSsh/0TdIi5Oqm85UblyEF0zm6LIGI6TStZ4z5Mg3ZbGcH4gK+CItAt8HTGBU6MAhFfj+Kvo4uznJgzb1ntH7NhrPW+H6hBY5Vy0qivojSKwoy6nbIMXLY7UIxO6n/OxT8R8Y=
+deploy:
+  provider: pypi
+  user:
+    secure: EnKMIgbfoWevryvbQAEOTjquSP6rUEgRX/nIUt0vW0wu8ir55XhNJ48eafKTv2uYFi9C4XE66qtZU2qwfstnyK/GABi6+wzR+scfMwB7FykU+n7+LRP3uz3O1+rEae4sgRnzWwTqfmbEwyllQmGSssYeFoPNK8i/afXgBO6VZ5A=
+  password:
+    secure: Exs3RO2rnrZ2EEIB8Slv7hEPTwy+YGxIyz2sCxQY4sf2h2Pv7Ntmqad+/AsLOGzMQwMTBrj4LxoIiYIeZEXpgx6UH71QMXG8RGEH1NdM+iWoyW8+gNl4BLoQ/t9pKYdC0W+r2ZDZEltCMb+GhwCkgYgFxPyWCIQj+C9201dssJk=
+  on:
+    repo: polysquare/polysquare-travis-container
+    branch: master
+    python: 2.7

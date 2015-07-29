@@ -16,9 +16,9 @@ if platform.system() != "Windows":
         "python-debian"
     ])
 
-setup(name="psqtraviscontainer",
-      version="0.0.6",
-      description="Polysquare Travis-CI Container Root",
+setup(name="polysquare-travis-container",
+      version="0.0.7",
+      description="""Polysquare Travis-CI Container Root""",
       long_description_markdown_filename="README.md",
       author="Sam Spilsbury",
       author_email="smspillaz@gmail.com",
@@ -41,17 +41,16 @@ setup(name="psqtraviscontainer",
                         "tempdir"] + INSTALL_EXTRAS,
       extras_require={
           "green": [
-              "coverage",
               "testtools",
               "shutilwhich",
               "nose",
               "nose-parameterized>=0.0.5",
               "mock",
-              "setuptools-green",
+              "setuptools-green>=0.0.13",
               "tempdir"
           ],
           "polysquarelint": [
-              "polysquare-setuptools-lint"
+              "polysquare-setuptools-lint>=0.0.21"
           ],
           "upload": [
               "setuptools-markdown"
