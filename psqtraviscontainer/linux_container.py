@@ -17,6 +17,8 @@ import stat
 
 import tarfile
 
+import tempfile
+
 from collections import defaultdict
 from collections import namedtuple
 
@@ -77,6 +79,20 @@ def get_dir_for_distro(container_dir, config):
     distro_folder_name_template = (os.path.basename(url) + ".root")
     distro_folder_name = distro_folder_name_template.format(arch=arch)
     return os.path.realpath(os.path.join(container_dir, distro_folder_name))
+
+
+def _rmtrees_as_container(cont, directories):
+    """Remove directories as the root user in the container.
+
+    This allows the removal of directories where permission errors
+    might not permit otherwise.
+    """
+    root = cont.root_filesystem_directory()
+
+    with tempfile.NamedTemporaryFile(dir=root, mode="wt") as bash_script:
+        bash_script.write(";\n".join([("rm -rf " + d) for d in directories]))
+        bash_script.flush()
+        cont.execute(["bash", bash_script.name])
 
 
 class LinuxContainer(container.AbstractContainer):
@@ -153,16 +169,16 @@ class LinuxContainer(container.AbstractContainer):
 
     def clean(self):
         """Clean out this container."""
-        rmtree = container.AbstractContainer.rmtree
-
-        rmtree(os.path.join(self._distro_dir, "tmp"))
-        rmtree(os.path.join(self._distro_dir, "var", "cache", "apt"))
-        rmtree(os.path.join(self._distro_dir, "var", "run"))
-        rmtree(os.path.join(self._distro_dir, "usr", "share", "doc"))
-        rmtree(os.path.join(self._distro_dir, "usr", "share", "locale"))
-        rmtree(os.path.join(self._distro_dir, "usr", "share", "man"))
-        rmtree(os.path.join(self._distro_dir, "var", "lib", "apt", "lists"))
-        rmtree(os.path.join(self._distro_dir, "dev"))
+        _rmtrees_as_container(self, [
+            os.path.join(self._distro_dir, "tmp"),
+            os.path.join(self._distro_dir, "var", "cache", "apt"),
+            os.path.join(self._distro_dir, "var", "run"),
+            os.path.join(self._distro_dir, "usr", "share", "doc"),
+            os.path.join(self._distro_dir, "usr", "share", "locale"),
+            os.path.join(self._distro_dir, "usr", "share", "man"),
+            os.path.join(self._distro_dir, "var", "lib", "apt", "lists"),
+            os.path.join(self._distro_dir, "dev")
+        ])
 
         try:
             os.makedirs(os.path.join(self._distro_dir,
