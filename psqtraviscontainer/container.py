@@ -21,6 +21,8 @@ from collections import namedtuple
 
 from contextlib import contextmanager
 
+import parseshebang
+
 import shutilwhich  # suppress(F401,PYC50,unused-import)
 
 import six
@@ -42,28 +44,6 @@ def updated_environ(prepend):
         yield env
     finally:
         os.environ = old_environ
-
-
-def _shebang_parts(executable):
-    """Return any shebang from executable to be prepended to invocation.
-
-    If the filename's extension is in PATHEXT, then don't read the shebang,
-    as Windows will know how to handle it for us.
-    """
-    pathext = os.environ.get("PATHEXT", "").split(os.pathsep)
-    if os.path.splitext(executable)[1] in pathext:
-        return []
-
-    with open(executable, "r") as fileobj:
-        try:
-            part = fileobj.read(2)
-        except UnicodeDecodeError:
-            part = ""
-
-        if part == "#!":
-            return fileobj.readline().strip().split(" ")
-
-    return []
 
 
 class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
@@ -157,7 +137,7 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
             argv[0] = shutil.which(argv[0])
             assert argv[0] is not None
 
-            argv = _shebang_parts(argv[0]) + argv
+            argv = parseshebang.parse(argv[0]) + argv
             executed_cmd = subprocess.Popen(argv,
                                             stdout=stdout,
                                             stderr=stderr,
