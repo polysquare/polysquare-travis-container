@@ -21,6 +21,7 @@ Executables
 executables
 Fedora
 filename
+filename's
 filesystem
 flake8
 getter
@@ -29,6 +30,7 @@ homebrew
 launchpad
 OSX
 overridable
+PATHEXT
 PermissionError
 _POLYSQUARE_TRAVIS_CONTAINER_TEST_CACHE_DIR
 PPA
