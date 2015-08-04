@@ -21,7 +21,8 @@ before_deploy:
 - polysquare_run deploy/python/deploy.py
 env:
   global:
-    secure: Qw1ZpPGW305MqXUGhj1luETKKluW0KXX/ZZ+q5ZSsh/0TdIi5Oqm85UblyEF0zm6LIGI6TStZ4z5Mg3ZbGcH4gK+CItAt8HTGBU6MAhFfj+Kvo4uznJgzb1ntH7NhrPW+H6hBY5Vy0qivojSKwoy6nbIMXLY7UIxO6n/OxT8R8Y=
+    - JOBSTAMPS_DISABLED=1
+    - secure: Qw1ZpPGW305MqXUGhj1luETKKluW0KXX/ZZ+q5ZSsh/0TdIi5Oqm85UblyEF0zm6LIGI6TStZ4z5Mg3ZbGcH4gK+CItAt8HTGBU6MAhFfj+Kvo4uznJgzb1ntH7NhrPW+H6hBY5Vy0qivojSKwoy6nbIMXLY7UIxO6n/OxT8R8Y=
 deploy:
   provider: pypi
   user:

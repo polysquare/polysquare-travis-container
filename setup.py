@@ -51,7 +51,7 @@ setup(name="polysquare-travis-container",
               "tempdir"
           ],
           "polysquarelint": [
-              "polysquare-setuptools-lint>=0.0.21"
+              "polysquare-setuptools-lint>=0.0.25"
           ],
           "upload": [
               "setuptools-markdown"
