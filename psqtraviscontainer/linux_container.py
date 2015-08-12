@@ -5,6 +5,8 @@
 # See /LICENCE.md for Copyright information
 """Specialization for linux containers, using proot."""
 
+from __future__ import unicode_literals
+
 import errno
 
 import os
@@ -270,7 +272,7 @@ def _fetch_proot_distribution(container_root):
 
     try:
         os.stat(path_to_proot_check)
-        printer.unicode_safe(colored.green(u"""-> """
+        printer.unicode_safe(colored.green("""-> """
                                            """Using pre-existing proot """
                                            """distribution\n""",
                                            bold=True))
@@ -291,10 +293,10 @@ def _fetch_proot_distribution(container_root):
         with open(path_to_proot_check, "w+") as check_file:
             check_file.write("done")
 
-        printer.unicode_safe(colored.green(u"""\N{check mark} """
-                                           u"""Successfully installed proot """
-                                           u"""distribution to """
-                                           u"""{}\n""".format(container_root),
+        printer.unicode_safe(colored.green("""\N{check mark} """
+                                           """Successfully installed proot """
+                                           """distribution to """
+                                           """{}\n""".format(container_root),
                                            bold=True))
 
     return proot_distro_from_container(container_root)
@@ -510,9 +512,9 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
 
     try:
         os.stat(path_to_distro_folder)
-        use_existing_msg = (u"""\N{check mark} Using existing folder for """
-                            u"""proot distro """
-                            u"""{distro} {release} {arch}\n""")
+        use_existing_msg = ("""\N{check mark} Using existing folder for """
+                            """proot distro """
+                            """{distro} {release} {arch}\n""")
         printer.unicode_safe(colored.green(use_existing_msg.format(**details),
                                            bold=True))
     except OSError:

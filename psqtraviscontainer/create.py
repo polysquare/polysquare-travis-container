@@ -12,6 +12,8 @@ in order to create the jail. Commands running in the proot will have filesystem
 requests redirected to the proot and believe that they are running as uid 0
 """
 
+from __future__ import unicode_literals
+
 import os
 
 from clint.textui import colored
