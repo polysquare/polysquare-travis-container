@@ -17,7 +17,7 @@ if platform.system() != "Windows":
     ])
 
 setup(name="polysquare-travis-container",
-      version="0.0.13",
+      version="0.0.14",
       description="""Polysquare Travis-CI Container Root""",
       long_description_markdown_filename="README.md",
       author="Sam Spilsbury",
@@ -47,7 +47,7 @@ setup(name="polysquare-travis-container",
               "nose",
               "nose-parameterized>=0.0.5",
               "mock",
-              "setuptools-green>=0.0.13",
+              "setuptools-green>=0.0.14",
               "tempdir"
           ],
           "polysquarelint": [
