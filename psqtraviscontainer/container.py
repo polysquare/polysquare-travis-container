@@ -143,7 +143,7 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
             # Windows where PATH is read from its state as it existed
             # when this process got created, not at the time Popen was
             # called.
-            argv = parseshebang.parse(argv[0]) + argv
+            argv = parseshebang.parse(str(argv[0])) + argv
             argv[0] = shutil.which(argv[0])
             assert argv[0] is not None
 
