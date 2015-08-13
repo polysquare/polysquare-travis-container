@@ -26,6 +26,8 @@ from collections import namedtuple
 
 from contextlib import closing
 
+from getpass import getuser
+
 from itertools import chain
 
 from clint.textui import colored
@@ -94,7 +96,7 @@ def _rmtrees_as_container(cont, directories):
     with tempfile.NamedTemporaryFile(dir=root, mode="wt") as bash_script:
         bash_script.write(";\n".join([("rm -rf " + d) for d in directories]))
         bash_script.flush()
-        cont.execute(["bash", bash_script.name])
+        cont.execute(["bash", bash_script.name], minimal_bind=True)
 
 
 class LinuxContainer(container.AbstractContainer):
@@ -181,6 +183,15 @@ class LinuxContainer(container.AbstractContainer):
             os.path.join(self._distro_dir, "var", "lib", "apt", "lists"),
             os.path.join(self._distro_dir, "dev")
         ])
+
+        self.execute(["chown", "-R", "{}:users".format(getuser()), "/"],
+                     minimal_bind=True)
+
+        try:
+            shutil.rmtree(os.path.join(self._distro_dir, "dev"))
+        except OSError as error:
+            if error.errno != errno.ENOENT:
+                raise error
 
         try:
             os.makedirs(os.path.join(self._distro_dir,
