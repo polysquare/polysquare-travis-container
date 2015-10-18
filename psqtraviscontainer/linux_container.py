@@ -155,11 +155,13 @@ class LinuxContainer(container.AbstractContainer):
             proot_command += ["-q", self._proot_distro.qemu(self._arch)]
 
         # Favor distribution's own environment variables
+        prepend_env = dict()
+
         with open(os.path.join(self._distro_dir, "etc", "environment")) as env:
-            prepend_env = {l.split("=")[0]:
-                           "".join([c for c in l.split("=")[1]
-                                   if c != "\""]).strip()
-                           for l in env.readlines()}
+            prepend_env.update({l.split("=")[0]:
+                                "".join([c for c in l.split("=")[1]
+                                        if c != "\""]).strip()
+                                for l in env.readlines()})
 
         # Make sure that LANG is set.
         prepend_env["LANG"] = (prepend_env.get("LANG", None) or "C")
