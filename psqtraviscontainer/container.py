@@ -29,13 +29,15 @@ import six
 
 
 @contextmanager
-def updated_environ(prepend):
-    """Context with prepend added to os.environ."""
+def updated_environ(prepend, overwrite):
+    """Context with prepend added to and overwrite replacing os.environ."""
     env = os.environ.copy()
     for key, value in prepend.items():
         env[key] = "{0}{1}{2}".format(value,
                                       os.pathsep,
                                       env.get(key, ""))
+
+    env.update(overwrite)
 
     old_environ = os.environ
     os.environ = env
@@ -49,7 +51,13 @@ def updated_environ(prepend):
 class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
     """An abstract class representing an OS container."""
 
-    PopenArguments = namedtuple("PopenArguments", "argv env")
+    PopenArguments = namedtuple("PopenArguments", "argv prepend overwrite")
+
+    # vulture doesn't know that the __defaults__ attribute is actually
+    # built-in.
+    #
+    # suppress(unused-attribute)
+    PopenArguments.__new__.__defaults__ = (None, dict(), dict())
 
     @staticmethod
     def rmtree(directory):
@@ -130,9 +138,11 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                 stderr=subprocess.PIPE,
                 **kwargs):
         """Execute the process and arguments indicated by argv in container."""
-        argv, modify_env = self._subprocess_popen_arguments(argv, **kwargs)
+        (argv,
+         prepend_env,
+         overwrite_env) = self._subprocess_popen_arguments(argv, **kwargs)
 
-        with updated_environ(modify_env) as env:
+        with updated_environ(prepend_env, overwrite_env) as env:
             argv[0] = shutil.which(argv[0])
             assert argv[0] is not None
 

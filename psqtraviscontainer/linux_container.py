@@ -129,6 +129,12 @@ class LinuxContainer(container.AbstractContainer):
         user filesystem should be exposed to the container. This will
         allow dpkg to remove certain system files in the container.
         """
+        def parse_from_line(line):
+            """Parse environment variable key-value pair from line."""
+            return (line.split("=")[0],
+                    "".join([c for c in line.split("=")[1]
+                            if c != "\""]).strip())
+
         popen_args = self.__class__.PopenArguments
 
         if kwargs.get("minimal_bind", None):
@@ -154,18 +160,22 @@ class LinuxContainer(container.AbstractContainer):
             proot_command += ["-q", self._proot_distro.qemu(self._arch)]
 
         # Favor distribution's own environment variables
-        prepend_env = dict()
-
         with open(os.path.join(self._distro_dir, "etc", "environment")) as env:
-            prepend_env.update({l.split("=")[0]:
-                                "".join([c for c in l.split("=")[1]
-                                        if c != "\""]).strip()
-                                for l in env.readlines()})
+            etc_environment_lines = env.readlines()
+            prepend_env = dict([parse_from_line(l)
+                                for l in etc_environment_lines
+                                if l.split("=")[0].endswith("PATH")])
+            overwrite_env = dict([parse_from_line(l)
+                                 for l in etc_environment_lines
+                                 if not l.split("=")[0].endswith("PATH")])
 
-        # Make sure that LANG is set.
-        prepend_env["LANG"] = (prepend_env.get("LANG", None) or "C")
+        # Make sure that LANG is set to C, instead of whatever it was
+        # set to before
+        overwrite_env["LANG"] = "C"
 
-        return popen_args(env=prepend_env, argv=proot_command + argv)
+        return popen_args(prepend=prepend_env,
+                          overwrite=overwrite_env,
+                          argv=proot_command + argv)
 
     def _root_filesystem_directory(self):
         """Return directory on parent filesystem where our root is located."""

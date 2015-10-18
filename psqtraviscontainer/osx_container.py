@@ -62,7 +62,7 @@ class OSXContainer(container.AbstractContainer):
             "LD_LIBRARY_PATH": os.path.join(self._prefix, "lib"),
             "PKG_CONFIG_PATH": os.path.join(self._prefix, "lib", "pkgconfig")
         }
-        return popen_args(env=popen_env, argv=argv)
+        return popen_args(prepend=popen_env, argv=argv)
 
     def _root_filesystem_directory(self):
         """Return directory on parent filesystem where our root is located."""

@@ -59,7 +59,7 @@ class WindowsContainer(container.AbstractContainer):
         popen_env = {
             "PATH": os.path.join(self._prefix, "bin")
         }
-        return popen_args(env=popen_env, argv=argv)
+        return popen_args(prepend=popen_env, argv=argv)
 
     def _root_filesystem_directory(self):
         """Return directory on parent filesystem where our root is located."""
