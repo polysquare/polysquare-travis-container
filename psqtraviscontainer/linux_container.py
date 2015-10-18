@@ -290,7 +290,8 @@ def _fetch_proot_distribution(container_root):
 
     except OSError:
         create_msg = """Creating distribution of proot in {}\n"""
-        printer.unicode_safe(colored.yellow(create_msg.format(container_root),
+        root_relative = os.path.relpath(container_root)
+        printer.unicode_safe(colored.yellow(create_msg.format(root_relative),
                                             bold=True))
 
         # Distro check does not exist - create the ./_proot directory
@@ -307,7 +308,7 @@ def _fetch_proot_distribution(container_root):
         printer.unicode_safe(colored.green("""\N{check mark} """
                                            """Successfully installed proot """
                                            """distribution to """
-                                           """{}\n""".format(container_root),
+                                           """{}\n""".format(root_relative),
                                            bold=True))
 
     return proot_distro_from_container(container_root)
@@ -317,7 +318,7 @@ def _extract_distro_archive(distro_archive_file, distro_folder):
     """Extract distribution archive into distro_folder."""
     with tarfile.open(name=distro_archive_file.path()) as archive:
         msg = ("""-> Extracting """
-               """{0}\n""").format(distro_archive_file.path())
+               """{0}\n""").format(os.path.relpath(distro_archive_file.path()))
         extract_members = [m for m in archive.getmembers()
                            if not m.isdev()]
         printer.unicode_safe(colored.magenta(msg, bold=True))
