@@ -27,6 +27,7 @@ flake8
 getter
 Homebrew
 homebrew
+LANG
 launchpad
 OSX
 overridable

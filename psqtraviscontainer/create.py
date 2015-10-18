@@ -98,8 +98,9 @@ def main(arguments=None):
                                              selected_distro) as container:
         container.install_packages(result.repositories, result.packages)
 
-    msg = """\N{check mark} Container has been set up in {0.containerdir}\n"""
-    printer.unicode_safe(colored.green(msg.format(result),
+    relative_containerdir = os.path.relpath(result.containerdir)
+    msg = """\N{check mark} Container has been set up in {0}\n"""
+    printer.unicode_safe(colored.green(msg.format(relative_containerdir),
                                        bold=True))
 
 if __name__ == "__main__":

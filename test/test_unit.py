@@ -22,7 +22,6 @@ from testtools.matchers import MatchesPredicate
 
 
 class TestDirectoryNavigation(TestCase):
-
     """Tests for psqtraviscontainer/directory.py."""
 
     def test_enter_create_dir(self):
@@ -42,7 +41,6 @@ class TestDirectoryNavigation(TestCase):
 
 
 class TestArchitecture(TestCase):  # suppress(R0903)
-
     """Tests for psqtraviscontainer/architecture.py."""
 
     def test_unknown_architecture(self):
@@ -63,7 +61,6 @@ class TestArchitecture(TestCase):  # suppress(R0903)
 
 
 class TestDistroLookup(TestCase):  # suppress(R0903)
-
     """Tests for looking up the distro."""
 
     def test_error_lookup_bad_distro(self):  # suppress(no-self-use)

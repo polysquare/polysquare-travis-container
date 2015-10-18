@@ -100,7 +100,6 @@ def _rmtrees_as_container(cont, directories):
 
 
 class LinuxContainer(container.AbstractContainer):
-
     """A container for a linux distribution.
 
     We can execute commands inside this container by using proot and qemu.
@@ -155,11 +154,16 @@ class LinuxContainer(container.AbstractContainer):
             proot_command += ["-q", self._proot_distro.qemu(self._arch)]
 
         # Favor distribution's own environment variables
+        prepend_env = dict()
+
         with open(os.path.join(self._distro_dir, "etc", "environment")) as env:
-            prepend_env = {l.split("=")[0]:
-                           "".join([c for c in l.split("=")[1]
-                                   if c != "\""]).strip()
-                           for l in env.readlines()}
+            prepend_env.update({l.split("=")[0]:
+                                "".join([c for c in l.split("=")[1]
+                                        if c != "\""]).strip()
+                                for l in env.readlines()})
+
+        # Make sure that LANG is set.
+        prepend_env["LANG"] = (prepend_env.get("LANG", None) or "C")
 
         return popen_args(env=prepend_env, argv=proot_command + argv)
 
@@ -290,7 +294,8 @@ def _fetch_proot_distribution(container_root):
 
     except OSError:
         create_msg = """Creating distribution of proot in {}\n"""
-        printer.unicode_safe(colored.yellow(create_msg.format(container_root),
+        root_relative = os.path.relpath(container_root)
+        printer.unicode_safe(colored.yellow(create_msg.format(root_relative),
                                             bold=True))
 
         # Distro check does not exist - create the ./_proot directory
@@ -307,7 +312,7 @@ def _fetch_proot_distribution(container_root):
         printer.unicode_safe(colored.green("""\N{check mark} """
                                            """Successfully installed proot """
                                            """distribution to """
-                                           """{}\n""".format(container_root),
+                                           """{}\n""".format(root_relative),
                                            bold=True))
 
     return proot_distro_from_container(container_root)
@@ -317,7 +322,7 @@ def _extract_distro_archive(distro_archive_file, distro_folder):
     """Extract distribution archive into distro_folder."""
     with tarfile.open(name=distro_archive_file.path()) as archive:
         msg = ("""-> Extracting """
-               """{0}\n""").format(distro_archive_file.path())
+               """{0}\n""").format(os.path.relpath(distro_archive_file.path()))
         extract_members = [m for m in archive.getmembers()
                            if not m.isdev()]
         printer.unicode_safe(colored.magenta(msg, bold=True))
@@ -641,7 +646,6 @@ def enumerate_all(info):
 
 
 class LinuxInfo(DistroInfo):
-
     """Linux-specific specialization of DistroInfo."""
 
     PACKAGE_SYSTEMS = {

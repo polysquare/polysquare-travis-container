@@ -64,7 +64,6 @@ def _convert_to_switch_args(kwargs):
 
 
 class SafeTempDir(object):  # pylint:disable=R0903
-
     """A TempDir that dissolves on __exit__, ignoring PermissionError."""
 
     def __init__(self):
@@ -147,7 +146,6 @@ def run_use_container_on_dir(directory, **kwargs):
 def test_case_requiring_platform(system):
     """Get a TestCase base class which can only be run on platform."""
     class TestCaseRequiring(TestCase):
-
         """A wrapper around TestCase which only runs tests on platform."""
 
         def setUp(self):  # suppress(N802)
@@ -160,7 +158,6 @@ def test_case_requiring_platform(system):
 
 
 class TestCreateProot(test_case_requiring_platform("Linux")):
-
     """A test case for proot creation basics."""
 
     def test_create_proot_distro(self):
@@ -215,7 +212,6 @@ def cached_downloads():
 
 
 class ContainerInspectionTestCase(TestCase):
-
     """TestCase where container persists until all tests have completed.
 
     No modifications should be made to the container during any
@@ -272,7 +268,6 @@ def _format_arch(func, num, params):
 
 
 class TestProotDistribution(ContainerInspectionTestCase):
-
     """Tests to inspect a proot distribution itself."""
 
     def setUp(self):   # suppress(N802)
@@ -348,7 +343,6 @@ PLATFORM_PROGRAM_MAPPINGS = {
 
 
 class TestExecInContainer(TestCase):
-
     """A test case for executing things inside a container."""
 
     def test_exec_fail_no_distro(self):  # suppress(no-self-use)
@@ -379,7 +373,6 @@ ARCHITECTURE_LIBDIR_MAPPINGS = {
 
 
 class InstallationConfig(object):  # pylint:disable=R0903
-
     """Manages configuration files."""
 
     def __init__(self, packages, repos):
@@ -421,7 +414,6 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
                         **kwargs):
     """Create a TemplateDistroTest class."""
     class TemplateDistroTest(ContainerInspectionTestCase):
-
         """Template for checking a distro proot."""
 
         def __init__(self, *args, **kwargs):

@@ -42,7 +42,6 @@ _POWERPC64_ARCHITECTURE = _ArchitectureType(aliases=["ppc64el", "ppc64"],
 
 
 class _AliasMetaclass(type):
-
     """A metaclass which provides an operator to convert arch strings."""
 
     @classmethod
@@ -71,7 +70,6 @@ class _AliasMetaclass(type):
 
 
 class Alias(with_metaclass(_AliasMetaclass, object)):
-
     """Implementation of _AliasMetaclass.
 
     Provides convenience methods to convert architecture strings

@@ -35,7 +35,6 @@ def _run_task(executor, description, argv):
 
 
 class PackageSystem(six.with_metaclass(abc.ABCMeta, object)):
-
     """An abstract class representing a package manager."""
 
     PopenArguments = namedtuple("PopenArguments", "argv env")
@@ -56,7 +55,6 @@ class PackageSystem(six.with_metaclass(abc.ABCMeta, object)):
 
 
 class Dpkg(PackageSystem):
-
     """Debian Packaging System."""
 
     def __init__(self,
@@ -124,7 +122,6 @@ class Dpkg(PackageSystem):
 
 
 class Yum(PackageSystem):
-
     """Red Hat Packaging System."""
 
     def __init__(self,
@@ -162,7 +159,6 @@ class Yum(PackageSystem):
 
 
 class Brew(PackageSystem):
-
     """Homebrew packaging system for OS X."""
 
     def __init__(self, executor):
@@ -188,7 +184,6 @@ class Brew(PackageSystem):
 
 
 class Choco(PackageSystem):
-
     """Chocolatey packaging system for Windows."""
 
     def __init__(self, executor):
