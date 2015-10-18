@@ -161,6 +161,9 @@ class LinuxContainer(container.AbstractContainer):
                                    if c != "\""]).strip()
                            for l in env.readlines()}
 
+        # Make sure that LANG is set.
+        prepend_env["LANG"] = (prepend_env.get("LANG", None) or "C")
+
         return popen_args(env=prepend_env, argv=proot_command + argv)
 
     def _root_filesystem_directory(self):
