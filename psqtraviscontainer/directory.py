@@ -11,7 +11,6 @@ import os
 
 
 class Navigation(object):  # pylint:disable=R0903
-
     """Context manager to enter and exit directories."""
 
     def __init__(self, path):

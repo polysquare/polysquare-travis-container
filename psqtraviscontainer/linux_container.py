@@ -100,7 +100,6 @@ def _rmtrees_as_container(cont, directories):
 
 
 class LinuxContainer(container.AbstractContainer):
-
     """A container for a linux distribution.
 
     We can execute commands inside this container by using proot and qemu.
@@ -647,7 +646,6 @@ def enumerate_all(info):
 
 
 class LinuxInfo(DistroInfo):
-
     """Linux-specific specialization of DistroInfo."""
 
     PACKAGE_SYSTEMS = {

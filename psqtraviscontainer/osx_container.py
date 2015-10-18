@@ -32,7 +32,6 @@ _HOMEBREW_URL = "https://github.com/Homebrew/homebrew/tarball/master"
 
 
 class OSXContainer(container.AbstractContainer):
-
     """A container for OS X.
 
     We can execute commands inside this container by setting the

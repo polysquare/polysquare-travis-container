@@ -33,7 +33,6 @@ _CHOCO_INSTALL_CMD = ("iex ((new-object net.webclient).DownloadString('" +
 
 
 class WindowsContainer(container.AbstractContainer):
-
     """A container for Windows.
 
     We can execute commands inside this container by setting the

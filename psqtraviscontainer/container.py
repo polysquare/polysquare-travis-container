@@ -47,7 +47,6 @@ def updated_environ(prepend):
 
 
 class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
-
     """An abstract class representing an OS container."""
 
     PopenArguments = namedtuple("PopenArguments", "argv env")

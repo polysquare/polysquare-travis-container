@@ -36,7 +36,6 @@ def download_file(url, filename=None):
 
 
 class TemporarilyDownloadedFile(object):  # pylint:disable=R0903
-
     """An enter/exit class representing a temporarily downloaded file.
 
     The file will be downloaded on enter and erased once the scope has
