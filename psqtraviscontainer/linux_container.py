@@ -169,9 +169,12 @@ class LinuxContainer(container.AbstractContainer):
                                  for l in etc_environment_lines
                                  if not l.split("=")[0].endswith("PATH")])
 
-        # Make sure that LANG is set to C, instead of whatever it was
-        # set to before
-        overwrite_env["LANG"] = "C"
+        # Make sure that LANG and LC_ALL are set to C, instead of
+        # whatever it was set to before
+        overwrite_env.update({
+            "LANG": "C",
+            "LC_ALL": "C"
+        })
 
         return popen_args(prepend=prepend_env,
                           overwrite=overwrite_env,

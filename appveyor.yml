@@ -6,6 +6,7 @@ environment:
 cache:
  - C:\container
 
+
 install:
  - ps: $env:PATH="${env:PYTHON};${env:PYTHON}/Scripts;C:/MinGW/bin;C:/Python34;C:/Python34/Scripts;C:/Python27;C:/Python27/Scripts;${env:PATH}"
  - ps: wget public-travis-scripts.polysquare.org/bootstrap.py -OutFile bootstrap
