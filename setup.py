@@ -41,18 +41,6 @@ setup(name="polysquare-travis-container",
                         "shutilwhich",
                         "tempdir"] + INSTALL_EXTRAS,
       extras_require={
-          "green": [
-              "testtools",
-              "shutilwhich",
-              "nose",
-              "nose-parameterized>=0.0.5",
-              "mock",
-              "setuptools-green>=0.0.14",
-              "tempdir"
-          ],
-          "polysquarelint": [
-              "polysquare-setuptools-lint>=0.0.25"
-          ],
           "upload": [
               "setuptools-markdown"
           ]
