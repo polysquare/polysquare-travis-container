@@ -143,8 +143,9 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
          overwrite_env) = self._subprocess_popen_arguments(argv, **kwargs)
 
         with updated_environ(prepend_env, overwrite_env) as env:
-            argv[0] = shutil.which(argv[0])
-            assert argv[0] is not None
+            if not os.path.exists(argv[0]):
+                argv[0] = shutil.which(argv[0])
+                assert argv[0] is not None
 
             # Also use which to find the shebang program - in some cases
             # we may only have the name of a program but not where it
@@ -153,8 +154,9 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
             # when this process got created, not at the time Popen was
             # called.
             argv = parseshebang.parse(str(argv[0])) + argv
-            argv[0] = shutil.which(argv[0])
-            assert argv[0] is not None
+            if not os.path.exists(argv[0]):
+                argv[0] = shutil.which(argv[0])
+                assert argv[0] is not None
 
             executed_cmd = subprocess.Popen(argv,
                                             stdout=stdout,
