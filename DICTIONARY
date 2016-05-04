@@ -53,6 +53,7 @@ net
 runtimes
 qemu
 qemu's
+requires_full_access
 rootfs
 subdirectory
 subprocess

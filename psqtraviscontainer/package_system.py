@@ -7,6 +7,10 @@
 
 import abc
 
+import fnmatch
+
+import os
+
 import sys
 
 import tempfile
@@ -28,10 +32,15 @@ _UBUNTU_MAIN_ARCHIVE = "http://archive.ubuntu.com/ubuntu/"
 _UBUNTU_PORT_ARCHIVE = "http://ports.ubuntu.com/ubuntu-ports/"
 
 
+def _report_task(description):
+    """Report task description."""
+    sys.stdout.write(str(colored.white("-> {0}\n".format(description))))
+
+
 def _run_task(executor, description, argv):
     """Run command through executor argv and prints description."""
-    sys.stdout.write(str(colored.white("-> {0}\n".format(description))))
-    executor.execute_success(argv)
+    _report_task(description)
+    executor.execute(argv, requires_full_access=True)
 
 
 class PackageSystem(six.with_metaclass(abc.ABCMeta, object)):
@@ -119,6 +128,46 @@ class Dpkg(PackageSystem):
                    "-qq",
                    "-y",
                    "--force-yes"] + package_names)
+
+
+class DpkgLocal(PackageSystem):
+    """Debian packaging system, installing packages to local directory."""
+
+    def __init__(self, release, arch, executor):
+        """Initialize this DpkgLocal PackageSystem."""
+        self._dpkg_system = Dpkg(release, arch, executor)
+        self._executor = executor
+
+    def add_repositories(self, repos):
+        """Add repository to the central packaging system."""
+        return self._dpkg_system.add_repositories(repos)
+
+    def install_packages(self, package_names):
+        """Install all packages in list package_names.
+
+        This works in a somewhat non-standard way. We will be
+        updating the repository list as usual, but will be
+        using a combination of apt-get download and
+        dpkg manually to install packages into a local
+        directory which we control.
+        """
+        _run_task(self._executor,
+                  """Update repositories""",
+                  ["apt-get", "update", "-qq", "-y", "--force-yes"])
+        with tempdir.TempDir() as download_dir:
+            with directory.Navigation(download_dir):
+                root = self._executor.root_filesystem_directory()
+                _run_task(self._executor,
+                          """Update repositories""",
+                          ["apt-get", "download"] + package_names)
+                debs = fnmatch.filter(os.listdir("."), "*.deb")
+                _run_task(self._executor,
+                          """Installing {0}""".format(str(package_names)), [
+                              "dpkg",
+                              "--force-all",
+                              "--root=" + root,
+                              "--unpack"
+                          ] + debs)
 
 
 class Yum(PackageSystem):

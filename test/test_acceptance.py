@@ -19,7 +19,8 @@ from collections import namedtuple
 
 from contextlib import contextmanager
 
-from test.testutil import download_file_cached
+from test.testutil import (download_file_cached,
+                           temporary_environment)
 
 from nose_parameterized import parameterized
 
@@ -241,8 +242,9 @@ class ContainerInspectionTestCase(TestCase):
     @classmethod
     def setUpClass(cls):  # suppress(N802)
         """Set up container for all tests in this test case."""
-        config = default_create_container_arguments()
-        cls.create_container(**config)
+        with temporary_environment(_FORCE_DOWNLOAD_QEMU="True"):
+            config = default_create_container_arguments()
+            cls.create_container(**config)
 
     @classmethod
     def tearDownClass(cls):  # suppress(N802)
