@@ -22,10 +22,12 @@ DistroInfo = namedtuple("DistroInfo",
 def _distribution_information():
     """Return generator of DistroInfo."""
     from psqtraviscontainer import linux_container
+    from psqtraviscontainer import linux_local_container
     from psqtraviscontainer import osx_container
     from psqtraviscontainer import windows_container
 
-    return itertools.chain(linux_container.DISTRIBUTIONS,
+    return itertools.chain(linux_local_container.DISTRIBUTIONS,
+                           linux_container.DISTRIBUTIONS,
                            osx_container.DISTRIBUTIONS,
                            windows_container.DISTRIBUTIONS)
 

@@ -52,5 +52,8 @@ def get_parser(action):
                         default=current_arch,
                         choices=architectures,
                         env_var="CONTAINER_ARCH")
+    parser.add_argument("--local",
+                        action="store_true",
+                        help="""Use the 'local' version of this container.""")
 
     return parser

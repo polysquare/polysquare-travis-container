@@ -16,6 +16,8 @@ import shutil
 
 import sys
 
+from contextlib import contextmanager
+
 from clint.textui import colored
 
 from psqtraviscontainer.download import download_file as download_file_original
@@ -50,3 +52,14 @@ def download_file_cached(url, filename=None):
         dest_filename = download_file_original(url, filename)
 
     return dest_filename
+
+
+@contextmanager
+def temporary_environment(**kwargs):
+    """A context with os.environ set to a temporary value."""
+    environ_copy = os.environ.copy()
+    os.environ.update(kwargs)
+    try:
+        yield
+    finally:
+        os.environ = environ_copy

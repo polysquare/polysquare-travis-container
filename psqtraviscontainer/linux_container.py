@@ -230,7 +230,7 @@ def _extract_deb_data(archive, tmp_dir):
             data_tar.extractall(path=tmp_dir)
 
 
-def _fetch_proot_distribution(container_root):
+def _fetch_proot_distribution(container_root, target_arch):
     """Fetch the initial proot distribution if it is not available.
 
     Touches /.have-proot-distribution when complete
@@ -315,9 +315,15 @@ def _fetch_proot_distribution(container_root):
         # and download files for this architecture
         with directory.Navigation(path_to_proot_dir):
             proot_arch = architecture.Alias.universal(platform.machine())
-            qemu_arch = architecture.Alias.debian(platform.machine())
             _download_proot(path_to_proot_dir, proot_arch)
-            _download_qemu(path_to_proot_dir, qemu_arch)
+
+            # We may not need qemu if we're not going to emulate
+            # anything.
+            if (architecture.Alias.universal(platform.machine()) !=
+                    architecture.Alias.universal(target_arch) or
+                    os.environ.get("_FORCE_DOWNLOAD_QEMU", None)):
+                qemu_arch = architecture.Alias.debian(platform.machine())
+                _download_qemu(path_to_proot_dir, qemu_arch)
 
         with open(path_to_proot_check, "w+") as check_file:
             check_file.write("done")
@@ -588,7 +594,8 @@ def container_for_directory(container_dir, distro_config):
 def create(container_dir, distro_config):
     """Create a container using proot."""
     # First fetch a proot distribution if we don't already have one
-    proot_distro = _fetch_proot_distribution(container_dir)
+    proot_distro = _fetch_proot_distribution(container_dir,
+                                             distro_config["arch"])
 
     # Now fetch the distribution tarball itself, if we specified one
     cont = _fetch_distribution(container_dir,
@@ -634,6 +641,9 @@ def match(info, arguments):
     if arguments.get("distro", None) != info.kwargs["distro"]:
         return None
 
+    if arguments.get("local", None):
+        return None
+
     distro_release = info.kwargs["release"]
 
     # pychecker thinks that a list comprehension as a return value is
@@ -671,7 +681,8 @@ class LinuxInfo(DistroInfo):
         """Create DistroInfo namedtuple using provided arguments."""
         kwargs.update({
             "distro": distro_type,
-            "pkgsys": LinuxInfo.PACKAGE_SYSTEMS[distro_type]
+            "pkgsys": LinuxInfo.PACKAGE_SYSTEMS[distro_type],
+            "installation": "proot"
         })
 
         return DistroInfo.__new__(cls,
