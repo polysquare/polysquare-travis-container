@@ -37,24 +37,6 @@ def get_dir_for_distro(container_dir, config):
     return os.path.realpath(os.path.join(container_dir, distro_folder_name))
 
 
-def force_make_dirs(directories):
-    """Make directories."""
-    for directory_name in directories:
-        try:
-            os.makedirs(directory_name)
-        except OSError as error:
-            if error.errno != errno.EEXIST:
-                raise error
-
-
-def force_make_files(files):
-    """Make files."""
-    for filename in files:
-        with open(filename, "wt") as file_instance:
-            file_instance.truncate(0)
-            file_instance.write("")
-
-
 class LocalLinuxContainer(container.AbstractContainer):
     """A container for a linux distribution.
 
@@ -73,22 +55,6 @@ class LocalLinuxContainer(container.AbstractContainer):
         self._arch = arch
         self._package_root = package_root
         self._pkgsys = pkg_sys_constructor(release, arch, self)
-
-        directories = [
-            os.path.join(self._package_root, "var", "lib", "dpkg", "info"),
-            os.path.join(self._package_root, "var", "lib", "dpkg", "updates")
-        ]
-
-        files = [
-            os.path.join(self._package_root,
-                         "var",
-                         "lib",
-                         "dpkg",
-                         "available"),
-            os.path.join(self._package_root, "var", "lib", "dpkg", "status")
-        ]
-        force_make_dirs(directories)
-        force_make_files(files)
 
     def _root_filesystem_directory(self):
         """Return directory on parent filesystem where our root is located."""
