@@ -19,6 +19,7 @@ from collections import namedtuple
 
 from clint.textui import colored
 
+from psqtraviscontainer import debian
 from psqtraviscontainer import directory
 from psqtraviscontainer import download
 
@@ -114,7 +115,8 @@ class Dpkg(PackageSystem):
                 bash_script.write(six.b(append_cmd))
 
             bash_script.flush()
-            self._executor.execute_success(["bash", bash_script.name])
+            self._executor.execute_success(["bash", bash_script.name],
+                                           requires_full_access=True)
 
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
@@ -158,16 +160,12 @@ class DpkgLocal(PackageSystem):
             with directory.Navigation(download_dir):
                 root = self._executor.root_filesystem_directory()
                 _run_task(self._executor,
-                          """Update repositories""",
+                          """Downloading {}""".format(package_names),
                           ["apt-get", "download"] + package_names)
                 debs = fnmatch.filter(os.listdir("."), "*.deb")
-                _run_task(self._executor,
-                          """Installing {0}""".format(str(package_names)), [
-                              "dpkg",
-                              "--force-all",
-                              "--root=" + root,
-                              "--unpack"
-                          ] + debs)
+                for deb in debs:
+                    _report_task("""Extracting {}""".format(deb))
+                    debian.extract_deb_data(deb, root)
 
 
 class Yum(PackageSystem):
