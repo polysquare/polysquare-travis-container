@@ -13,9 +13,13 @@ import os
 
 import sys
 
+import tarfile
+
 import tempfile
 
 from collections import namedtuple
+
+from contextlib import closing
 
 from clint.textui import colored
 
@@ -114,7 +118,8 @@ class Dpkg(PackageSystem):
                 bash_script.write(six.b(append_cmd))
 
             bash_script.flush()
-            self._executor.execute_success(["bash", bash_script.name])
+            self._executor.execute_success(["bash", bash_script.name],
+                                           requires_full_access=True)
 
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
@@ -128,6 +133,14 @@ class Dpkg(PackageSystem):
                    "-qq",
                    "-y",
                    "--force-yes"] + package_names)
+
+
+def _extract_deb_data(archive, tmp_dir):
+    """Extract archive to tmp_dir."""
+    with closing(archive.getmember("data.tar.gz")) as member:
+        with tarfile.open(fileobj=member,
+                          mode="r|*") as data_tar:
+            data_tar.extractall(path=tmp_dir)
 
 
 class DpkgLocal(PackageSystem):
@@ -151,6 +164,8 @@ class DpkgLocal(PackageSystem):
         dpkg manually to install packages into a local
         directory which we control.
         """
+        from debian import arfile  # suppress(import-error)
+
         _run_task(self._executor,
                   """Update repositories""",
                   ["apt-get", "update", "-qq", "-y", "--force-yes"])
@@ -158,16 +173,12 @@ class DpkgLocal(PackageSystem):
             with directory.Navigation(download_dir):
                 root = self._executor.root_filesystem_directory()
                 _run_task(self._executor,
-                          """Update repositories""",
+                          """Downloading {}""".format(package_names),
                           ["apt-get", "download"] + package_names)
                 debs = fnmatch.filter(os.listdir("."), "*.deb")
-                _run_task(self._executor,
-                          """Installing {0}""".format(str(package_names)), [
-                              "dpkg",
-                              "--force-all",
-                              "--root=" + root,
-                              "--unpack"
-                          ] + debs)
+                for deb in debs:
+                    _report_task("""Extracting {}""".format(deb))
+                    _extract_deb_data(arfile.ArFile(deb), root)
 
 
 class Yum(PackageSystem):
