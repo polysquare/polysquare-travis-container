@@ -24,8 +24,6 @@ import tempfile
 from collections import defaultdict
 from collections import namedtuple
 
-from contextlib import closing
-
 from getpass import getuser
 
 from itertools import chain
@@ -35,6 +33,7 @@ from clint.textui import colored
 from psqtraviscontainer import architecture
 from psqtraviscontainer import constants
 from psqtraviscontainer import container
+from psqtraviscontainer import debian
 from psqtraviscontainer import directory
 from psqtraviscontainer import distro
 from psqtraviscontainer import package_system
@@ -222,22 +221,11 @@ class LinuxContainer(container.AbstractContainer):
                 raise error
 
 
-def _extract_deb_data(archive, tmp_dir):
-    """Extract archive to tmp_dir."""
-    with closing(archive.getmember("data.tar.gz")) as member:
-        with tarfile.open(fileobj=member,
-                          mode="r|*") as data_tar:
-            data_tar.extractall(path=tmp_dir)
-
-
 def _fetch_proot_distribution(container_root, target_arch):
     """Fetch the initial proot distribution if it is not available.
 
     Touches /.have-proot-distribution when complete
     """
-    # We may not have python-debian installed on all platforms
-    from debian import arfile  # suppress(import-error)
-
     path_to_proot_check = constants.have_proot_distribution(container_root)
     path_to_proot_dir = constants.proot_distribution_dir(container_root)
 
@@ -258,8 +246,7 @@ def _fetch_proot_distribution(container_root, target_arch):
         printer.unicode_safe(colored.magenta(("""-> Extracting {0}\n"""
                                               """""").format(qemu_deb_path),
                                              bold=True))
-        archive = arfile.ArFile(qemu_deb_path)
-        _extract_deb_data(archive, qemu_temp_dir)
+        debian.extract_deb_data(qemu_deb_path, qemu_temp_dir)
 
     def _remove_unused_emulators(qemu_binaries_path):
         """Remove unused emulators from qemu distribution."""

@@ -13,16 +13,13 @@ import os
 
 import sys
 
-import tarfile
-
 import tempfile
 
 from collections import namedtuple
 
-from contextlib import closing
-
 from clint.textui import colored
 
+from psqtraviscontainer import debian
 from psqtraviscontainer import directory
 from psqtraviscontainer import download
 
@@ -135,14 +132,6 @@ class Dpkg(PackageSystem):
                    "--force-yes"] + package_names)
 
 
-def _extract_deb_data(archive, tmp_dir):
-    """Extract archive to tmp_dir."""
-    with closing(archive.getmember("data.tar.gz")) as member:
-        with tarfile.open(fileobj=member,
-                          mode="r|*") as data_tar:
-            data_tar.extractall(path=tmp_dir)
-
-
 class DpkgLocal(PackageSystem):
     """Debian packaging system, installing packages to local directory."""
 
@@ -164,8 +153,6 @@ class DpkgLocal(PackageSystem):
         dpkg manually to install packages into a local
         directory which we control.
         """
-        from debian import arfile  # suppress(import-error)
-
         _run_task(self._executor,
                   """Update repositories""",
                   ["apt-get", "update", "-qq", "-y", "--force-yes"])
@@ -178,7 +165,7 @@ class DpkgLocal(PackageSystem):
                 debs = fnmatch.filter(os.listdir("."), "*.deb")
                 for deb in debs:
                     _report_task("""Extracting {}""".format(deb))
-                    _extract_deb_data(arfile.ArFile(deb), root)
+                    debian.extract_deb_data(deb, root)
 
 
 class Yum(PackageSystem):
