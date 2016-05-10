@@ -459,6 +459,10 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
             """
             format_kwargs = dict()
 
+            if kwargs.get("release", None) == "trusty":
+                self.skipTest("""Trusty images are currently unavailable""")
+                return
+
             if platform.system() == "Linux":
                 root = get_dir_for_distro(self.container_dir,
                                           config)
