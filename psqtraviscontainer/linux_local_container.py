@@ -236,16 +236,16 @@ class LinuxLocalInfo(DistroInfo):
 DISTRIBUTIONS = [  # suppress(unused-variable)
     LinuxLocalInfo("Ubuntu",
                    release="precise",
-                   url=("http://cdimage.ubuntu.com/ubuntu-core/releases/"
-                        "precise/release/"
-                        "ubuntu-core-12.04.5-core-{arch}.tar.gz"),
+                   url=("http://old-releases.ubuntu.com/releases/ubuntu-core/"
+                        "releases/12.04.3/release/"
+                        "ubuntu-core-12.04.3-core-{arch}.tar.gz"),
                    arch=["i386", "amd64", "armhf"],
                    archfetch=architecture.Alias.debian,),
     LinuxLocalInfo("Ubuntu",
                    release="trusty",
-                   url=("http://cdimage.ubuntu.com/ubuntu-core/releases/"
-                        "trusty/release/"
-                        "ubuntu-core-14.04.1-core-{arch}.tar.gz"),
+                   url=("http://old-releases.ubuntu.com/releases/ubuntu-core/"
+                        "releases/utopic/release/"
+                        "ubuntu-core-14.10-core-{arch}.tar.gz"),
                    arch=["i386", "amd64", "armhf", "powerpc"],
                    archfetch=architecture.Alias.debian)
 ]
