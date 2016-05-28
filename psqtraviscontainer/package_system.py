@@ -19,7 +19,7 @@ from collections import namedtuple
 
 from clint.textui import colored
 
-from psqtraviscontainer import debian
+from psqtraviscontainer import debian_package
 from psqtraviscontainer import directory
 from psqtraviscontainer import download
 
@@ -153,19 +153,30 @@ class DpkgLocal(PackageSystem):
         dpkg manually to install packages into a local
         directory which we control.
         """
+        from six.moves.urllib.parse import urlparse  # suppress(import-error)
+
         _run_task(self._executor,
                   """Update repositories""",
                   ["apt-get", "update", "-qq", "-y", "--force-yes"])
+
+        # Separate out into packages that need to be downloaded with
+        # apt-get and packages that can be downloaded directly
+        # using download_file
+        deb_packages = [p for p in package_names if not urlparse(p).scheme]
+        apt_packages = [p for p in package_names if urlparse(p)]
+
         with tempdir.TempDir() as download_dir:
             with directory.Navigation(download_dir):
                 root = self._executor.root_filesystem_directory()
                 _run_task(self._executor,
                           """Downloading {}""".format(package_names),
-                          ["apt-get", "download"] + package_names)
+                          ["apt-get", "download"] + apt_packages)
+                for deb in deb_packages:
+                    download.download_file(deb)
                 debs = fnmatch.filter(os.listdir("."), "*.deb")
                 for deb in debs:
                     _report_task("""Extracting {}""".format(deb))
-                    debian.extract_deb_data(deb, root)
+                    debian_package.extract_deb_data(deb, root)
 
 
 class Yum(PackageSystem):
