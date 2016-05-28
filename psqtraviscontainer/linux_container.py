@@ -33,7 +33,7 @@ from clint.textui import colored
 from psqtraviscontainer import architecture
 from psqtraviscontainer import constants
 from psqtraviscontainer import container
-from psqtraviscontainer import debian
+from psqtraviscontainer import debian_package
 from psqtraviscontainer import directory
 from psqtraviscontainer import distro
 from psqtraviscontainer import package_system
@@ -246,7 +246,7 @@ def _fetch_proot_distribution(container_root, target_arch):
         printer.unicode_safe(colored.magenta(("""-> Extracting {0}\n"""
                                               """""").format(qemu_deb_path),
                                              bold=True))
-        debian.extract_deb_data(qemu_deb_path, qemu_temp_dir)
+        debian_package.extract_deb_data(qemu_deb_path, qemu_temp_dir)
 
     def _remove_unused_emulators(qemu_binaries_path):
         """Remove unused emulators from qemu distribution."""

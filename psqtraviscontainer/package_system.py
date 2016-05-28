@@ -19,7 +19,7 @@ from collections import namedtuple
 
 from clint.textui import colored
 
-from psqtraviscontainer import debian
+from psqtraviscontainer import debian_package
 from psqtraviscontainer import directory
 from psqtraviscontainer import download
 
@@ -176,7 +176,7 @@ class DpkgLocal(PackageSystem):
                 debs = fnmatch.filter(os.listdir("."), "*.deb")
                 for deb in debs:
                     _report_task("""Extracting {}""".format(deb))
-                    debian.extract_deb_data(deb, root)
+                    debian_package.extract_deb_data(deb, root)
 
 
 class Yum(PackageSystem):

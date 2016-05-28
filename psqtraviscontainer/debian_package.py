@@ -1,4 +1,4 @@
-# /psqtraviscontainer/debian.py
+# /psqtraviscontainer/debian_package.py
 #
 # Functionality common to debian packages.
 #
