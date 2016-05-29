@@ -162,8 +162,8 @@ class DpkgLocal(PackageSystem):
         # Separate out into packages that need to be downloaded with
         # apt-get and packages that can be downloaded directly
         # using download_file
-        deb_packages = [p for p in package_names if not urlparse(p).scheme]
-        apt_packages = [p for p in package_names if urlparse(p)]
+        deb_packages = [p for p in package_names if urlparse(p).scheme]
+        apt_packages = [p for p in package_names if not urlparse(p).scheme]
 
         with tempdir.TempDir() as download_dir:
             with directory.Navigation(download_dir):
