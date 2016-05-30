@@ -173,8 +173,9 @@ class DpkgLocal(PackageSystem):
 
         # If there are any packages in deb_packages, clear out the
         # installation directory first.
-        shutil.rmtree(self._executor.root_filesystem_directory())
-        os.makedirs(self._executor.root_filesystem_directory())
+        if os.path.exists(self._executor.root_filesystem_directory()):
+            shutil.rmtree(self._executor.root_filesystem_directory())
+            os.makedirs(self._executor.root_filesystem_directory())
 
         with tempdir.TempDir() as download_dir:
             with directory.Navigation(download_dir):
