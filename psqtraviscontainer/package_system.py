@@ -173,13 +173,13 @@ class DpkgLocal(PackageSystem):
 
         # If there are any packages in deb_packages, clear out the
         # installation directory first.
-        if os.path.exists(self._executor.root_filesystem_directory()):
-            shutil.rmtree(self._executor.root_filesystem_directory())
-            os.makedirs(self._executor.root_filesystem_directory())
+        root = self._executor.root_filesystem_directory()
+        if os.path.exists(root):
+            shutil.rmtree(root)
+            os.makedirs(root)
 
         with tempdir.TempDir() as download_dir:
             with directory.Navigation(download_dir):
-                root = self._executor.root_filesystem_directory()
                 _run_task(self._executor,
                           """Downloading {}""".format(package_names),
                           ["apt-get", "download"] + apt_packages)
