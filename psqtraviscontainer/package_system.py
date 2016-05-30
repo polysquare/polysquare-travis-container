@@ -13,7 +13,11 @@ import os
 
 import shutil
 
+import subprocess
+
 import sys
+
+import tarfile
 
 import tempfile
 
@@ -243,9 +247,32 @@ class Brew(PackageSystem):
 
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
+        from six.moves import shlex_quote  # suppress(import-error)
+        from six.moves.urllib.parse import urlparse  # suppress(import-error)
+
+        # Separate out into packages that need to be downloaded with
+        # brew and those that can be downloaded directly
+        tar_packages = [p for p in package_names if urlparse(p).scheme]
+        brew_packages = [p for p in package_names if not urlparse(p).scheme]
+
         _run_task(self._executor,
-                  """Install {0}""".format(str(package_names)),
-                  ["brew", "install"] + package_names)
+                  """Install {0}""".format(str(brew_packages)),
+                  ["brew", "install"] + brew_packages)
+
+        for tar_pkg in tar_packages:
+            with tempdir.TempDir() as download_dir:
+                with directory.Navigation(download_dir):
+                    download.download_file(tar_pkg)
+                    with tarfile.open(name=os.path.basename(tar_pkg)) as tobj:
+                        tobj.extractall()
+                    # The shell provides an easy way to do this, so just
+                    # use subprocess to call out to it.
+                    extracted_dir = [d for d in os.listdir(download_dir)
+                                     if d != os.path.basename(tar_pkg)][0]
+                    subprocess.check_call("cp -r {src}/* {dst}".format(
+                        src=shlex_quote(extracted_dir),
+                        dst=self._executor.root_filesystem_directory()
+                    ), shell=True)
 
 
 class Choco(PackageSystem):
