@@ -27,7 +27,7 @@ def extract_deb_data(archive, extract_dir):
             # Succeeded, break out here
             break
         except KeyError as error:
-            if str(error) == data_mem:
+            if str(error) == "'{}'".format(data_mem):
                 continue
             else:
                 raise error
