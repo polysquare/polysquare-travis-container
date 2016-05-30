@@ -11,6 +11,8 @@ import fnmatch
 
 import os
 
+import shutil
+
 import sys
 
 import tempfile
@@ -164,6 +166,11 @@ class DpkgLocal(PackageSystem):
         # using download_file
         deb_packages = [p for p in package_names if urlparse(p).scheme]
         apt_packages = [p for p in package_names if not urlparse(p).scheme]
+
+        # If there are any packages in deb_packages, clear out the
+        # installation directory first.
+        shutil.rmtree(self._executor.root_filesystem_directory())
+        os.makedirs(self._executor.root_filesystem_directory())
 
         with tempdir.TempDir() as download_dir:
             with directory.Navigation(download_dir):
