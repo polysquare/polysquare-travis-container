@@ -21,6 +21,8 @@ import tarfile
 
 import tempfile
 
+import textwrap
+
 from collections import namedtuple
 
 from clint.textui import colored
@@ -44,10 +46,15 @@ def _report_task(description):
     sys.stdout.write(str(colored.white("-> {0}\n".format(description))))
 
 
-def _run_task(executor, description, argv):
+def _run_task(executor, description, argv, env=None, detail=None):
     """Run command through executor argv and prints description."""
-    _report_task(description)
-    executor.execute(argv, requires_full_access=True)
+    detail = "[{}]".format(" ".join(argv)) if detail is None else detail
+    _report_task(description + " " + detail)
+    code, stdout, stderr = executor.execute(argv,
+                                            requires_full_access=True,
+                                            env=env)
+    print(textwrap.indent(stdout, "   "))
+    print(textwrap.indent(stderr, "   "))
 
 
 class PackageSystem(six.with_metaclass(abc.ABCMeta, object)):
