@@ -397,6 +397,10 @@ class Brew(PackageSystem):
         brew_packages = [p for p in package_names if not urlparse(p).scheme]
 
         _run_task(self._executor,
+                  """Updating repositories""",
+                  ["brew", "update"])
+
+        _run_task(self._executor,
                   """Install {0}""".format(str(brew_packages)),
                   ["brew", "install"] + brew_packages)
 
