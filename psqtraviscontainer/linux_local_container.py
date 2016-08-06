@@ -136,8 +136,7 @@ def container_for_directory(container_dir, distro_config):
                                                distro_config)
 
     return LocalLinuxContainer(cont,
-                               os.path.join(path_to_distro_folder,
-                                            "packages"),
+                               path_to_distro_folder,
                                distro_config["release"],
                                distro_config["arch"],
                                distro_config["pkgsys"])
@@ -150,8 +149,7 @@ def create(container_dir, distro_config):
                                                distro_config)
 
     return LocalLinuxContainer(cont,
-                               os.path.join(path_to_distro_folder,
-                                            "packages"),
+                               path_to_distro_folder,
                                distro_config["release"],
                                distro_config["arch"],
                                distro_config["pkgsys"])
