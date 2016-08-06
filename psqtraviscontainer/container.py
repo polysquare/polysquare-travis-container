@@ -150,13 +150,18 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                 argv,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                env=None,
                 **kwargs):
         """Execute the process and arguments indicated by argv in container."""
         (argv,
          prepend_env,
          overwrite_env) = self._subprocess_popen_arguments(argv, **kwargs)
 
-        with updated_environ(prepend_env, overwrite_env) as env:
+        # Update overwrite_env with any values that the user may
+        # have provided in env
+        overwrite_env.update(env or {})
+
+        with updated_environ(prepend_env, overwrite_env) as environment:
             if not os.path.exists(argv[0]):
                 abs_argv0 = shutil.which(argv[0])
                 if abs_argv0 is None:
@@ -187,7 +192,7 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
             executed_cmd = subprocess.Popen(argv,
                                             stdout=stdout,
                                             stderr=stderr,
-                                            env=env,
+                                            env=environment,
                                             universal_newlines=True)
 
         stdout_data, stderr_data = executed_cmd.communicate()
