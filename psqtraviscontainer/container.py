@@ -17,6 +17,8 @@ import subprocess
 
 import sys
 
+import textwrap
+
 from collections import namedtuple
 
 from contextlib import contextmanager
@@ -26,6 +28,18 @@ import parseshebang
 import shutilwhich  # suppress(F401,PYC50,unused-import)
 
 import six
+
+
+def _not_found_binary_error_msg(argv0, path_env):
+    """Return an error message about how argv0 was not found in path_env."""
+    print(path_env)
+    return "\n".join(textwrap.wrap(
+        """Couldn't find {argv0} in the root filesystem. Possible causes """
+        """include no binary with the name {argv0} being in any paths """
+        """in the PATH environment variable either locally or as set by """
+        """the user. The PATH environment variable is defined as:\n{path}"""
+    )).format(argv0=argv0,
+              path="\n * ".join([""] + path_env.split(os.pathsep)))
 
 
 @contextmanager
@@ -144,8 +158,14 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
 
         with updated_environ(prepend_env, overwrite_env) as env:
             if not os.path.exists(argv[0]):
-                argv[0] = shutil.which(argv[0])
-                assert argv[0] is not None
+                abs_argv0 = shutil.which(argv[0])
+                if abs_argv0 is None:
+                    raise RuntimeError(
+                        _not_found_binary_error_msg(argv[0],
+                                                    os.environ.get("PATH",
+                                                                   ""))
+                    )
+                argv[0] = abs_argv0
 
             # Also use which to find the shebang program - in some cases
             # we may only have the name of a program but not where it
@@ -155,8 +175,14 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
             # called.
             argv = parseshebang.parse(str(argv[0])) + argv
             if not os.path.exists(argv[0]):
-                argv[0] = shutil.which(argv[0])
-                assert argv[0] is not None
+                abs_argv0 = shutil.which(argv[0])
+                if abs_argv0 is None:
+                    raise RuntimeError(
+                        _not_found_binary_error_msg(argv[0],
+                                                    os.environ.get("PATH",
+                                                                   ""))
+                    )
+                argv[0] = abs_argv0
 
             executed_cmd = subprocess.Popen(argv,
                                             stdout=stdout,
