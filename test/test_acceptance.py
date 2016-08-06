@@ -506,8 +506,8 @@ _DISTRO_INFO = {
                           files=["bin/xz"]),
     "Windows": _DistroPackage(package="cmake.portable",
                               repo=[],
-                              files=["lib/cmake.portable.3.5.2/"
-                                     "tools/cmake-3.5.2-win32-x86/bin/"
+                              files=["lib/cmake.portable.3.6.1/"
+                                     "tools/cmake-3.6.1-win32-x86/bin/"
                                      "cmake.exe"])
 }
 

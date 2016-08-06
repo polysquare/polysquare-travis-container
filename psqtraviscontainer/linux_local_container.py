@@ -108,6 +108,34 @@ class LocalLinuxContainer(container.AbstractContainer):
                              "i686-linux-gnu",
                              "pkgconfig")
             ]),
+            "LIBRARY_PATH": os.pathsep.join([
+                os.path.join(self._package_root,
+                             "usr",
+                             "lib"),
+                os.path.join(self._package_root,
+                             "usr",
+                             "lib",
+                             "x86_64-linux-gnu"),
+                os.path.join(self._package_root,
+                             "usr",
+                             "lib",
+                             "i686-linux-gnu")
+            ]),
+            "INCLUDE_PATH": os.pathsep.join([
+                os.path.join(self._package_root,
+                             "usr",
+                             "include")
+            ]),
+            "CPATH": os.pathsep.join([
+                os.path.join(self._package_root,
+                             "usr",
+                             "include")
+            ]),
+            "CPPPATH": os.pathsep.join([
+                os.path.join(self._package_root,
+                             "usr",
+                             "include")
+            ]),
             "PATH": os.pathsep.join([
                 os.path.join(self._package_root,
                              "usr",
@@ -136,8 +164,7 @@ def container_for_directory(container_dir, distro_config):
                                                distro_config)
 
     return LocalLinuxContainer(cont,
-                               os.path.join(path_to_distro_folder,
-                                            "packages"),
+                               path_to_distro_folder,
                                distro_config["release"],
                                distro_config["arch"],
                                distro_config["pkgsys"])
@@ -150,8 +177,7 @@ def create(container_dir, distro_config):
                                                distro_config)
 
     return LocalLinuxContainer(cont,
-                               os.path.join(path_to_distro_folder,
-                                            "packages"),
+                               path_to_distro_folder,
                                distro_config["release"],
                                distro_config["arch"],
                                distro_config["pkgsys"])
