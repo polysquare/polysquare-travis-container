@@ -169,7 +169,7 @@ class DpkgLocal(PackageSystem):
     """Debian packaging system, installing packages to local directory."""
 
     def __init__(self, release, arch, executor):
-        """Initialize this DpkgLocal PackageSystem."""
+        """Initialize this PackageSystem."""
         super(DpkgLocal, self).__init__()
         self._release = release
         self._arch = arch
