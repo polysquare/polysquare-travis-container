@@ -7,6 +7,8 @@
 
 import abc
 
+import errno
+
 import fnmatch
 
 import os
@@ -27,7 +29,6 @@ from collections import namedtuple
 
 from clint.textui import colored
 
-from psqtraviscontainer import debian_package
 from psqtraviscontainer import directory
 from psqtraviscontainer import download
 
@@ -169,12 +170,101 @@ class DpkgLocal(PackageSystem):
 
     def __init__(self, release, arch, executor):
         """Initialize this DpkgLocal PackageSystem."""
-        self._dpkg_system = Dpkg(release, arch, executor)
+        super(DpkgLocal, self).__init__()
+        self._release = release
+        self._arch = arch
         self._executor = executor
+
+    def _initialize_directories(self):
+        """Ensure that all APT and Dpkg directories are initialized."""
+        root = self._executor.root_filesystem_directory()
+        directory.safe_makedirs(os.path.join(root,
+                                             "var",
+                                             "cache",
+                                             "apt",
+                                             "archives",
+                                             "partial"))
+        directory.safe_makedirs(os.path.join(root,
+                                             "var",
+                                             "lib",
+                                             "apt",
+                                             "lists",
+                                             "partial"))
+        directory.safe_makedirs(os.path.join(root,
+                                             "var",
+                                             "lib",
+                                             "dpkg",
+                                             "updates"))
+        directory.safe_makedirs(os.path.join(root,
+                                             "var",
+                                             "lib",
+                                             "dpkg",
+                                             "info"))
+        directory.safe_makedirs(os.path.join(root,
+                                             "var",
+                                             "lib",
+                                             "dpkg",
+                                             "parts"))
+        directory.safe_touch(os.path.join(root,
+                                          "var",
+                                          "lib",
+                                          "dpkg",
+                                          "status"))
+        directory.safe_touch(os.path.join(root,
+                                          "var",
+                                          "lib",
+                                          "dpkg",
+                                          "available"))
+
+        for confpath in ["apt.conf",
+                         "preferences",
+                         "trusted.gpg",
+                         "sources.list"]:
+            directory.safe_makedirs(os.path.join(root,
+                                                 "etc",
+                                                 "apt",
+                                                 confpath + ".d"))
+
+        config_file_contents = "\n".join([
+            "Apt {",
+            "    Architecture \"" + self._arch + "\";",
+            "    Get {",
+            "        Assume-Yes true;",
+            "    };",
+            "};",
+            "debug {",
+            "    nolocking true;"
+            "};"
+            "Dir \"" + root + "\";",
+            "Dir::Cache \"" + root + "/var/cache/apt\";",
+            "Dir::State \"" + root + "/var/lib/apt\";"
+        ])
+        with open(os.path.join(root, "etc", "apt.conf"), "w") as config_file:
+            config_file.write(config_file_contents)
 
     def add_repositories(self, repos):
         """Add repository to the central packaging system."""
-        return self._dpkg_system.add_repositories(repos)
+        self._initialize_directories()
+
+        root = self._executor.root_filesystem_directory()
+        sources_list = os.path.join(root, "etc", "apt", "sources.list")
+
+        try:
+            with open(sources_list) as sources:
+                known_repos = [s for s in sources.read().split("\n") if len(s)]
+        except OSError as error:
+            if error.errno != errno.ENOENT:
+                raise error
+
+            known_repos = []
+
+        all_repos = (set(Dpkg.format_repositories(repos,
+                                                  self._release,
+                                                  self._arch)) |
+                     set(known_repos))
+
+        with open(sources_list, "w") as sources:
+            sources.write("\n".join(sorted(list(all_repos))))
 
     def install_packages(self, package_names):
         """Install all packages in list package_names.
@@ -185,11 +275,18 @@ class DpkgLocal(PackageSystem):
         dpkg manually to install packages into a local
         directory which we control.
         """
+        self._initialize_directories()
+
         from six.moves.urllib.parse import urlparse  # suppress(import-error)
 
+        root = self._executor.root_filesystem_directory()
+        environment = {
+            "APT_CONFIG": os.path.join(root, "etc", "apt.conf")
+        }
         _run_task(self._executor,
                   """Update repositories""",
-                  ["apt-get", "update", "-qq", "-y", "--force-yes"])
+                  ["apt-get", "update", "-y", "--force-yes"],
+                  env=environment)
 
         # Separate out into packages that need to be downloaded with
         # apt-get and packages that can be downloaded directly
@@ -197,24 +294,41 @@ class DpkgLocal(PackageSystem):
         deb_packages = [p for p in package_names if urlparse(p).scheme]
         apt_packages = [p for p in package_names if not urlparse(p).scheme]
 
-        # If there are any packages in deb_packages, clear out the
-        # installation directory first.
-        root = self._executor.root_filesystem_directory()
-        if os.path.exists(root):
-            shutil.rmtree(root)
-            os.makedirs(root)
+        # Clear out /var/cache/apt/archives
+        archives = os.path.join(root, "var", "cache", "apt", "archives")
+        if os.path.exists(archives):
+            shutil.rmtree(archives)
+            os.makedirs(archives)
 
-        with tempdir.TempDir() as download_dir:
-            with directory.Navigation(download_dir):
-                _run_task(self._executor,
-                          """Downloading {}""".format(package_names),
-                          ["apt-get", "download"] + apt_packages)
+        if len(deb_packages):
+            with directory.Navigation(archives):
+                _report_task("""Downloading user-specified packages""")
                 for deb in deb_packages:
                     download.download_file(deb)
-                debs = fnmatch.filter(os.listdir("."), "*.deb")
-                for deb in debs:
-                    _report_task("""Extracting {}""".format(deb))
-                    debian_package.extract_deb_data(deb, root)
+
+        # Now use apt-get install -d to download the apt_packages and their
+        # dependencies, but not install them
+        _run_task(self._executor,
+                  """Downloading APT packages and dependencies""",
+                  ["apt-get",
+                   "-y",
+                   "--force-yes",
+                   "-d",
+                   "install",
+                   "--reinstall"] + apt_packages,
+                  env=environment,
+                  detail="\n   (*) ".join([""] + apt_packages))
+
+        # Go back into our archives directory and unpack all our packages
+        with directory.Navigation(archives):
+            package_files = fnmatch.filter(os.listdir("."), "*.deb")
+            _run_task(self._executor,
+                      """Unpacking packages""",
+                      ["dpkg",
+                       "-i",
+                       "--root=" + root,
+                       "--force-all"] + package_files,
+                      detail="")
 
 
 class Yum(PackageSystem):
