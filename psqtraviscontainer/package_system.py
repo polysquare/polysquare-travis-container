@@ -155,12 +155,11 @@ class Dpkg(PackageSystem):
         """Install all packages in list package_names."""
         _run_task(self._executor,
                   """Update repositories""",
-                  ["apt-get", "update", "-qq", "-y", "--force-yes"])
+                  ["apt-get", "update", "-y", "--force-yes"])
         _run_task(self._executor,
                   """Install {0}""".format(str(package_names)),
                   ["apt-get",
                    "install",
-                   "-qq",
                    "-y",
                    "--force-yes"] + package_names)
 
