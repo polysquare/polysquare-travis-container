@@ -49,13 +49,20 @@ def _report_task(description):
 
 def _run_task(executor, description, argv, env=None, detail=None):
     """Run command through executor argv and prints description."""
+    def wrapper(line):
+        """Output wrapper for line."""
+        return textwrap.indent(line, "   ")
+
     detail = "[{}]".format(" ".join(argv)) if detail is None else detail
     _report_task(description + " " + detail)
-    code, stdout, stderr = executor.execute(argv,
-                                            requires_full_access=True,
-                                            env=env)
-    print(textwrap.indent(stdout, "   "))
-    print(textwrap.indent(stderr, "   "))
+    (code,
+     stdout_data,
+     stderr_data) = executor.execute(argv,
+                                     output_modifier=wrapper,
+                                     live_output=True,
+                                     requires_full_access=True,
+                                     env=env)
+    sys.stderr.write(stderr_data)
 
 
 def _format_package_list(packages):
