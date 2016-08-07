@@ -631,6 +631,9 @@ def match(info, arguments):
     if arguments.get("local", None):
         return None
 
+    if arguments.get("installation", None) == "local":
+        return None
+
     distro_release = info.kwargs["release"]
 
     # pychecker thinks that a list comprehension as a return value is
