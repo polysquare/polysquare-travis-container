@@ -25,11 +25,14 @@ from psqtraviscontainer import printer
 from psqtraviscontainer.architecture import Alias
 
 
-def _print_distribution_details(details):
-    """Print distribution details."""
+def _format_distribution_details(details, color=False):
+    """Format distribution details for printing later."""
     def _y_v(value):
         """Print value in distribution details."""
-        return colored.yellow(value)
+        if color:
+            return colored.yellow(value)
+        else:
+            return value
 
     # Maps keys in configuration to a pretty-printable name.
     distro_pretty_print_map = {
@@ -39,17 +42,20 @@ def _print_distribution_details(details):
         "pkgsys": lambda v: """Package System: """ + _y_v(v.__name__),
     }
 
+    return "\n".join([
+        " - " + distro_pretty_print_map[key](value)
+        for key, value in details.items()
+        if key in distro_pretty_print_map
+    ]) + "\n"
+
+
+def _print_distribution_details(details):
+    """Print distribution details."""
     output = bytearray()
     output += ("\n" +
                colored.white("""Configured Distribution:""", bold=True) +
                "\n").encode()
-
-    for key, value in details.items():
-        if key in distro_pretty_print_map:
-            line = " - {0}\n".format(distro_pretty_print_map[key](value))
-            output += line.encode()
-
-    output += "\n".encode()
+    output += _format_distribution_details(details, color=True).encode()
 
     printer.unicode_safe(output.decode("utf-8"))
 
@@ -88,6 +94,20 @@ def main(arguments=None):
     container_dir = os.path.realpath(result.containerdir)
 
     selected_distro = distro.lookup(vars(result))
+    try:
+        existing = distro.read_existing(result.containerdir)
+        for key, value in existing.items():
+            if selected_distro[key] != value:
+                details = _format_distribution_details(existing)
+                raise RuntimeError("""A distribution described by:\n"""
+                                   """{details}\n"""
+                                   """already exists in {containerdir}.\n"""
+                                   """Use a different container directory """
+                                   """or move this one out of the way"""
+                                   """""".format(details=details,
+                                                 containerdir=container_dir))
+    except distro.NoDistributionDetailsError:  # suppress(pointless-except)
+        pass
 
     _print_distribution_details(selected_distro)
 
@@ -97,6 +117,8 @@ def main(arguments=None):
     with selected_distro["info"].create_func(container_dir,
                                              selected_distro) as container:
         container.install_packages(result.repositories, result.packages)
+
+    distro.write_details(result.containerdir, selected_distro)
 
     relative_containerdir = os.path.relpath(result.containerdir)
     msg = """\N{check mark} Container has been set up in {0}\n"""

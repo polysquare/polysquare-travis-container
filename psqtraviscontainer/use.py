@@ -18,7 +18,7 @@ def _parse_arguments(arguments=None):
     parser = common_options.get_parser("Use")
     parser.add_argument("--show-output",
                         action="store_true",
-                        help="""Don't buffer output and show it immediately.""")
+                        help="""Don't buffer output - show it immediately.""")
     return parser.parse_args(arguments)
 
 
