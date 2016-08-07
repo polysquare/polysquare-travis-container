@@ -265,7 +265,7 @@ class DpkgLocal(PackageSystem):
         try:
             with open(sources_list) as sources:
                 known_repos = [s for s in sources.read().split("\n") if len(s)]
-        except OSError as error:
+        except EnvironmentError as error:
             if error.errno != errno.ENOENT:
                 raise error
 

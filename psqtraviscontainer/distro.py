@@ -58,7 +58,7 @@ def read_existing(container_dir):
     try:
         with open(os.path.join(container_dir, ".distroinfo")) as distroinfo_f:
             return json.load(distroinfo_f)
-    except OSError as error:
+    except EnvironmentError as error:
         if error.errno == errno.ENOENT:
             raise NoDistributionDetailsError()
         else:
