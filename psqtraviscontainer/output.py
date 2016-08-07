@@ -24,6 +24,10 @@ def monitor(stream,
 
     def read_thread():
         """Read each line from the stream and print it."""
+        # No stream, not much we can really do here.
+        if not stream:
+            return
+
         for line in stream:
             line = modifier(line)
             captured.write(line)
