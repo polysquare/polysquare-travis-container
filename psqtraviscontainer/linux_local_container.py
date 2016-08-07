@@ -208,7 +208,8 @@ def match(info, arguments):
     if arguments.get("distro", None) != info.kwargs["distro"]:
         return None
 
-    if not arguments.get("local", None):
+    if not (arguments.get("local", None) or
+            arguments.get("installation", None) == "local"):
         return None
 
     distro_release = info.kwargs["release"]
