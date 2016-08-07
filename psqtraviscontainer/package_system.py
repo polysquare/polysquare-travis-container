@@ -248,6 +248,7 @@ class DpkgLocal(PackageSystem):
             "debug {",
             "    nolocking true;"
             "};"
+            "Acquire::Queue-Mode \"host\";",
             "Dir \"" + root + "\";",
             "Dir::Cache \"" + root + "/var/cache/apt\";",
             "Dir::State \"" + root + "/var/lib/apt\";"
