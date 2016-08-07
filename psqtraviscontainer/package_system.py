@@ -58,6 +58,11 @@ def _run_task(executor, description, argv, env=None, detail=None):
     print(textwrap.indent(stderr, "   "))
 
 
+def _format_package_list(packages):
+    """Return a nicely formatted list of package names."""
+    "\n   (*) ".join([""] + packages)
+
+
 class PackageSystem(six.with_metaclass(abc.ABCMeta, object)):
     """An abstract class representing a package manager."""
 
@@ -158,11 +163,12 @@ class Dpkg(PackageSystem):
                   """Update repositories""",
                   ["apt-get", "update", "-y", "--force-yes"])
         _run_task(self._executor,
-                  """Install {0}""".format(str(package_names)),
+                  """Install APT packages""",
                   ["apt-get",
                    "install",
                    "-y",
-                   "--force-yes"] + package_names)
+                   "--force-yes"] + package_names,
+                  detail=_format_package_list(package_names))
 
 
 class DpkgLocal(PackageSystem):
@@ -317,7 +323,7 @@ class DpkgLocal(PackageSystem):
                    "install",
                    "--reinstall"] + apt_packages,
                   env=environment,
-                  detail="\n   (*) ".join([""] + apt_packages))
+                  detail=_format_package_list(apt_packages))
 
         # Go back into our archives directory and unpack all our packages
         with directory.Navigation(archives):
@@ -364,8 +370,9 @@ class Yum(PackageSystem):
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
         _run_task(self._executor,
-                  """Install {0}""".format(str(package_names)),
-                  ["yum", "install", "-y"] + package_names)
+                  """Install packages""",
+                  ["yum", "install", "-y"] + package_names,
+                  detail=_format_package_list(package_names))
 
 
 class Brew(PackageSystem):
@@ -401,10 +408,12 @@ class Brew(PackageSystem):
                   ["brew", "update"])
 
         _run_task(self._executor,
-                  """Install {0}""".format(str(brew_packages)),
-                  ["brew", "install"] + brew_packages)
+                  """Install packages""",
+                  ["brew", "install"] + brew_packages,
+                  detail=_format_package_list(brew_packages))
 
         for tar_pkg in tar_packages:
+            _report_task("""Install {}""".format(tar_pkg))
             with tempdir.TempDir() as download_dir:
                 with directory.Navigation(download_dir):
                     download.download_file(tar_pkg)
@@ -438,5 +447,6 @@ class Choco(PackageSystem):
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
         _run_task(self._executor,
-                  """Install {0}""".format(str(package_names)),
-                  ["choco", "install", "-fy", "-m"] + package_names)
+                  """Install packages""",
+                  ["choco", "install", "-fy", "-m"] + package_names,
+                  detail=_format_package_list(package_names))
