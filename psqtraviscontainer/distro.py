@@ -95,14 +95,15 @@ def lookup(arguments):
 
     # As last resort, look inside the container directory and see if there
     # is something in there that we know about.
-    try:
-        distro_info = read_existing(arguments["containerdir"])
-        matched_distribution = _search_for_matching_distro(distro_info)
+    if arguments.get("containerdir", None):
+        try:
+            distro_info = read_existing(arguments["containerdir"])
+            matched_distribution = _search_for_matching_distro(distro_info)
 
-        if matched_distribution:
-            return matched_distribution
-    except NoDistributionDetailsError:  # suppress(pointless-except)
-        pass
+            if matched_distribution:
+                return matched_distribution
+        except NoDistributionDetailsError:  # suppress(pointless-except)
+            pass
 
     raise RuntimeError("""Couldn't find matching distribution """
                        """({0})""".format(repr(arguments)))
