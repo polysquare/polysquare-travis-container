@@ -25,6 +25,8 @@ from contextlib import contextmanager
 
 import parseshebang
 
+from psqtraviscontainer import output
+
 import shutilwhich  # suppress(F401,PYC50,unused-import)
 
 import six
@@ -150,6 +152,8 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                 argv,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                output_modifier=None,
+                live_output=False,
                 env=None,
                 **kwargs):
         """Execute the process and arguments indicated by argv in container."""
@@ -195,7 +199,21 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                                             env=environment,
                                             universal_newlines=True)
 
-        stdout_data, stderr_data = executed_cmd.communicate()
+            # Monitor stdout and stderr. We allow live output for
+            # stdout, but not for stderr (so that it gets printed
+            # at the end)
+            stdout_monitor = output.monitor(executed_cmd.stdout,
+                                            modifier=output_modifier,
+                                            live=live_output)
+            stderr_monitor = output.monitor(executed_cmd.stderr,
+                                            modifier=output_modifier,
+                                            live=False)
+
+            try:
+                executed_cmd.wait()
+            finally:
+                stdout_data = stdout_monitor().read()
+                stderr_data = stderr_monitor().read()
 
         return (executed_cmd.returncode, stdout_data, stderr_data)
 
@@ -207,7 +225,9 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                                                             **kwargs)
 
         if returncode != 0:
-            sys.stderr.write(stdout_data)
+            if not kwargs.get("live"):
+                sys.stderr.write(stdout_data)
+
             sys.stderr.write(stderr_data)
             raise RuntimeError("""{0} failed with {1}""".format(" ".join(argv),
                                                                 returncode))

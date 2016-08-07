@@ -1,13 +1,11 @@
 # /psqtraviscontainer/linux_local_container.py
 #
-# Specialization for linux containers, using a variant
-# of linux_container. This variant uses proot to set
-# up the container, but installs packages into a
-# separate directory and makes them available using
-# paths.
+# Specialization for linux containers. This version bootstraps
+# package manager locally, without root access, and uses
+# environment variables to control binary access.
 #
 # See /LICENCE.md for Copyright information
-"""Specialization for linux containers, using proot."""
+"""Specialization for linux containers, using environment variables."""
 
 from __future__ import unicode_literals
 
@@ -210,7 +208,8 @@ def match(info, arguments):
     if arguments.get("distro", None) != info.kwargs["distro"]:
         return None
 
-    if not arguments.get("local", None):
+    if not (arguments.get("local", None) or
+            arguments.get("installation", None) == "local"):
         return None
 
     distro_release = info.kwargs["release"]

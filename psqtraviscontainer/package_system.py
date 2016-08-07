@@ -13,6 +13,8 @@ import fnmatch
 
 import os
 
+import platform
+
 import shutil
 
 import subprocess
@@ -49,13 +51,25 @@ def _report_task(description):
 
 def _run_task(executor, description, argv, env=None, detail=None):
     """Run command through executor argv and prints description."""
+    def wrapper(line):
+        """Output wrapper for line."""
+        return textwrap.indent(line, "   ")
+
     detail = "[{}]".format(" ".join(argv)) if detail is None else detail
     _report_task(description + " " + detail)
-    code, stdout, stderr = executor.execute(argv,
-                                            requires_full_access=True,
-                                            env=env)
-    print(textwrap.indent(stdout, "   "))
-    print(textwrap.indent(stderr, "   "))
+    (code,
+     stdout_data,
+     stderr_data) = executor.execute(argv,
+                                     output_modifier=wrapper,
+                                     live_output=True,
+                                     requires_full_access=True,
+                                     env=env)
+    sys.stderr.write(stderr_data)
+
+
+def _format_package_list(packages):
+    """Return a nicely formatted list of package names."""
+    "\n   (*) ".join([""] + packages)
 
 
 class PackageSystem(six.with_metaclass(abc.ABCMeta, object)):
@@ -154,15 +168,17 @@ class Dpkg(PackageSystem):
 
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
-        _run_task(self._executor,
-                  """Update repositories""",
-                  ["apt-get", "update", "-y", "--force-yes"])
-        _run_task(self._executor,
-                  """Install {0}""".format(str(package_names)),
-                  ["apt-get",
-                   "install",
-                   "-y",
-                   "--force-yes"] + package_names)
+        if len(package_names):
+            _run_task(self._executor,
+                      """Update repositories""",
+                      ["apt-get", "update", "-y", "--force-yes"])
+            _run_task(self._executor,
+                      """Install APT packages""",
+                      ["apt-get",
+                       "install",
+                       "-y",
+                       "--force-yes"] + package_names,
+                      detail=_format_package_list(package_names))
 
 
 class DpkgLocal(PackageSystem):
@@ -235,6 +251,7 @@ class DpkgLocal(PackageSystem):
             "debug {",
             "    nolocking true;"
             "};"
+            "Acquire::Queue-Mode \"host\";",
             "Dir \"" + root + "\";",
             "Dir::Cache \"" + root + "/var/cache/apt\";",
             "Dir::State \"" + root + "/var/lib/apt\";"
@@ -252,7 +269,7 @@ class DpkgLocal(PackageSystem):
         try:
             with open(sources_list) as sources:
                 known_repos = [s for s in sources.read().split("\n") if len(s)]
-        except OSError as error:
+        except EnvironmentError as error:
             if error.errno != errno.ENOENT:
                 raise error
 
@@ -308,27 +325,26 @@ class DpkgLocal(PackageSystem):
 
         # Now use apt-get install -d to download the apt_packages and their
         # dependencies, but not install them
-        _run_task(self._executor,
-                  """Downloading APT packages and dependencies""",
-                  ["apt-get",
-                   "-y",
-                   "--force-yes",
-                   "-d",
-                   "install",
-                   "--reinstall"] + apt_packages,
-                  env=environment,
-                  detail="\n   (*) ".join([""] + apt_packages))
+        if len(apt_packages):
+            _run_task(self._executor,
+                      """Downloading APT packages and dependencies""",
+                      ["apt-get",
+                       "-y",
+                       "--force-yes",
+                       "-d",
+                       "install",
+                       "--reinstall"] + apt_packages,
+                      env=environment,
+                      detail=_format_package_list(apt_packages))
 
         # Go back into our archives directory and unpack all our packages
         with directory.Navigation(archives):
             package_files = fnmatch.filter(os.listdir("."), "*.deb")
-            _run_task(self._executor,
-                      """Unpacking packages""",
-                      ["dpkg",
-                       "-i",
-                       "--root=" + root,
-                       "--force-all"] + package_files,
-                      detail="")
+            for pkg in package_files:
+                _run_task(self._executor,
+                          """Unpacking """,
+                          ["dpkg", "-x", pkg, root],
+                          detail=os.path.splitext(os.path.basename(pkg))[0])
 
 
 class Yum(PackageSystem):
@@ -363,9 +379,39 @@ class Yum(PackageSystem):
 
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
-        _run_task(self._executor,
-                  """Install {0}""".format(str(package_names)),
-                  ["yum", "install", "-y"] + package_names)
+        if len(package_names):
+            _run_task(self._executor,
+                      """Install packages""",
+                      ["yum", "install", "-y"] + package_names,
+                      detail=_format_package_list(package_names))
+
+
+def extract_tarfile(name):
+    """Extract a tarfile.
+
+    We attempt to do this in python, but work around bugs in the tarfile
+    implementation on various operating systems.
+    """
+    # LZMA extraction in broken on Travis-CI with OSX. Shell out to
+    # tar instead.
+    if platform.system() == "Darwin" and os.path.splitext(name)[1] == ".xz":
+        proc = subprocess.Popen(["tar", "-xJvf", name],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+        (stdout, stderr) = proc.communicate()
+        ret = proc.wait()
+
+        if ret != 0:
+            raise RuntimeError("""Extraction of {archive} failed """
+                               """with {ret}\n{stdout}\n{stderr}"""
+                               """""".format(archive=name,
+                                             ret=ret,
+                                             stdout=stdout.decode(),
+                                             stderr=stderr.decode()))
+        return
+
+    with tarfile.open(name=name) as tarfileobj:
+        tarfileobj.extractall()
 
 
 class Brew(PackageSystem):
@@ -396,20 +442,22 @@ class Brew(PackageSystem):
         tar_packages = [p for p in package_names if urlparse(p).scheme]
         brew_packages = [p for p in package_names if not urlparse(p).scheme]
 
-        _run_task(self._executor,
-                  """Updating repositories""",
-                  ["brew", "update"])
+        if len(brew_packages):
+            _run_task(self._executor,
+                      """Updating repositories""",
+                      ["brew", "update"])
 
-        _run_task(self._executor,
-                  """Install {0}""".format(str(brew_packages)),
-                  ["brew", "install"] + brew_packages)
+            _run_task(self._executor,
+                      """Install packages""",
+                      ["brew", "install"] + brew_packages,
+                      detail=_format_package_list(brew_packages))
 
         for tar_pkg in tar_packages:
+            _report_task("""Install {}""".format(tar_pkg))
             with tempdir.TempDir() as download_dir:
                 with directory.Navigation(download_dir):
                     download.download_file(tar_pkg)
-                    with tarfile.open(name=os.path.basename(tar_pkg)) as tobj:
-                        tobj.extractall()
+                    extract_tarfile(os.path.basename(tar_pkg))
                     # The shell provides an easy way to do this, so just
                     # use subprocess to call out to it.
                     extracted_dir = [d for d in os.listdir(download_dir)
@@ -438,5 +486,6 @@ class Choco(PackageSystem):
     def install_packages(self, package_names):
         """Install all packages in list package_names."""
         _run_task(self._executor,
-                  """Install {0}""".format(str(package_names)),
-                  ["choco", "install", "-fy", "-m"] + package_names)
+                  """Install packages""",
+                  ["choco", "install", "-fy", "-m"] + package_names,
+                  detail=_format_package_list(package_names))

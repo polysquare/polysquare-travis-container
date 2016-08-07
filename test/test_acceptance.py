@@ -349,10 +349,19 @@ class TestExecInContainer(TestCase):
 
     def test_exec_fail_no_distro(self):  # suppress(no-self-use)
         """Check that use.main() fails where there is no distro."""
-        with run_create_default_container() as container_dir:
+        with SafeTempDir() as container_dir:
             with ExpectedException(RuntimeError):
                 cmd = PLATFORM_PROGRAM_MAPPINGS[platform.system()]["0"]
                 run_use_container_on_dir(container_dir, cmd=cmd)
+
+    def test_exec_success_where_distro(self):  # suppress(no-self-use)
+        """Check that use.main() succeeds where there is a distro."""
+        # This will test that we can use "use.main()" without needing
+        # to specify a distro configuration
+        with run_create_default_container() as container_dir:
+            cmd = PLATFORM_PROGRAM_MAPPINGS[platform.system()]["0"]
+            self.assertEqual(run_use_container_on_dir(container_dir,
+                                                      cmd=cmd), 0)
 
     def test_exec_return_zero(self):
         """Check that use.main() returns true exit code of subprocess."""

@@ -503,7 +503,7 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
 
         pkgs = set(cont.execute(["dpkg-query",
                                  "-Wf",
-                                 "${Package} "])[1].split(" "))
+                                 "${Package}\n"])[1].split("\n"))
         release = details["release"]
         remove = [l for l in list(pkgs ^ required_packages[release]) if len(l)]
 
@@ -629,6 +629,9 @@ def match(info, arguments):
         return None
 
     if arguments.get("local", None):
+        return None
+
+    if arguments.get("installation", None) == "local":
         return None
 
     distro_release = info.kwargs["release"]

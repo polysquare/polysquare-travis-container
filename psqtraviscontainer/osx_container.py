@@ -105,7 +105,8 @@ def _fetch_homebrew(container_dir, distro_config):
         return container_for_directory(container_dir, distro_config)
     except OSError:
         with directory.Navigation(tempdir.TempDir().name):
-            with TemporarilyDownloadedFile(_HOMEBREW_URL) as archive_file:
+            with TemporarilyDownloadedFile(_HOMEBREW_URL,
+                                           filename="brew") as archive_file:
                 with directory.Navigation(tempdir.TempDir().name) as extract:
                     _extract_archive(archive_file, extract)
                     first = os.path.join(extract,

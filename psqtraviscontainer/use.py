@@ -18,7 +18,7 @@ def _parse_arguments(arguments=None):
     parser = common_options.get_parser("Use")
     parser.add_argument("--show-output",
                         action="store_true",
-                        help="""Show output of commands once they've run.""")
+                        help="""Don't buffer output - show it immediately.""")
     return parser.parse_args(arguments)
 
 
@@ -48,7 +48,9 @@ def main(arguments=None):
                 "stdout": None
             }
         else:
-            execute_kwargs = dict()
+            execute_kwargs = {
+                "live_output": True
+            }
 
         result = container.execute(command, **execute_kwargs)[0]
 
