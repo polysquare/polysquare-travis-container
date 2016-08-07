@@ -336,13 +336,11 @@ class DpkgLocal(PackageSystem):
         # Go back into our archives directory and unpack all our packages
         with directory.Navigation(archives):
             package_files = fnmatch.filter(os.listdir("."), "*.deb")
-            _run_task(self._executor,
-                      """Unpacking packages""",
-                      ["dpkg",
-                       "-i",
-                       "--root=" + root,
-                       "--force-all"] + package_files,
-                      detail="")
+            for pkg in package_files:
+                _run_task(self._executor,
+                          """Unpacking """,
+                          ["dpkg", "-x", pkg, root],
+                          detail=os.path.splitext(os.path.basename(pkg))[0])
 
 
 class Yum(PackageSystem):
