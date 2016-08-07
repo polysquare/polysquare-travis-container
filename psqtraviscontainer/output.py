@@ -37,6 +37,7 @@ def monitor(stream,
         def join():
             """Join the thread and then return its output."""
             thread.join()
+            captured.seek(0)
             return captured
 
         return join
