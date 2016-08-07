@@ -205,7 +205,7 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
             stdout_monitor = output.monitor(executed_cmd.stdout,
                                             modifier=output_modifier,
                                             live=live_output)
-            stderr_monitor = output.monitor(executed_cmd.stdout,
+            stderr_monitor = output.monitor(executed_cmd.stderr,
                                             modifier=output_modifier,
                                             live=False)
 
