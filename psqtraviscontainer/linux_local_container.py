@@ -1,13 +1,11 @@
 # /psqtraviscontainer/linux_local_container.py
 #
-# Specialization for linux containers, using a variant
-# of linux_container. This variant uses proot to set
-# up the container, but installs packages into a
-# separate directory and makes them available using
-# paths.
+# Specialization for linux containers. This version bootstraps
+# package manager locally, without root access, and uses
+# environment variables to control binary access.
 #
 # See /LICENCE.md for Copyright information
-"""Specialization for linux containers, using proot."""
+"""Specialization for linux containers, using environment variables."""
 
 from __future__ import unicode_literals
 
