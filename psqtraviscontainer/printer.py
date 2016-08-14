@@ -20,3 +20,4 @@ def unicode_safe(text):
         text = "".join([c for c in str(text) if ord(c) < 128])
 
     sys.stdout.write(str(text))
+    sys.stdout.flush()

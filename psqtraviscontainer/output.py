@@ -33,6 +33,7 @@ def monitor(stream,
             captured.write(line)
             if live:
                 output.write(line)
+                output.flush()
 
     def joiner_for_output(thread):
         """Closure to join the thread and do something with its output."""
