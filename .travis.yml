@@ -12,10 +12,12 @@ matrix:
     python: 'pypy3'
   - os: osx
     language: generic
-    env: PYTHON=python
+    env: PYTHON=python PIP=pip
+    osx_image: xcode8
   - os: osx
     language: generic
-    env: PYTHON=python3
+    env: PYTHON=python3 PIP=pip3
+    osx_image: xcode8
 addons:
   apt:
     packages:
