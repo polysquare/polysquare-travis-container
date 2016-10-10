@@ -5,9 +5,11 @@
 # See /LICENCE.md for Copyright information
 """Options common to both both commands."""
 
-import platform
+import argparse
 
-import configargparse
+import os
+
+import platform
 
 from psqtraviscontainer import architecture
 from psqtraviscontainer import distro
@@ -27,7 +29,7 @@ def get_parser(action):
             architectures.add(architecture.Alias.universal(config["arch"]))
 
     description = """{0} a CI container""".format(action)
-    parser = configargparse.ArgumentParser(description=description)
+    parser = argparse.ArgumentParser(description=description)
 
     current_arch = architecture.Alias.universal(platform.machine())
 
@@ -39,19 +41,18 @@ def get_parser(action):
                         type=str,
                         help="""Distribution name to create container of""",
                         choices=distributions,
-                        env_var="CONTAINER_DISTRO")
+                        default=os.environ.get("CONTAINER_DISTRO", None))
     parser.add_argument("--release",
                         type=str,
                         help="""Distribution release to create container of""",
-                        env_var="CONTAINER_RELEASE")
+                        default=os.environ.get("CONTAINER_RELEASE", None))
     parser.add_argument("--arch",
                         type=str,
                         help=("""Architecture (all architectures other """
                               """than the system architecture will be """
                               """emulated with qemu)"""),
-                        default=current_arch,
                         choices=architectures,
-                        env_var="CONTAINER_ARCH")
+                        default=os.environ.get("CONTAINER_ARCH", current_arch))
     parser.add_argument("--local",
                         action="store_true",
                         help="""Use the 'local' version of this container.""")
