@@ -7,9 +7,9 @@ matrix:
   - os: linux
     python: '3.5'
   - os: linux
-    python: 'pypy'
+    python: pypy
   - os: linux
-    python: 'pypy3'
+    python: pypy3
   - os: osx
     language: generic
     env: PYTHON=python PIP=pip
@@ -37,7 +37,7 @@ before_deploy:
 env:
   global:
   - JOBSTAMPS_DISABLED=1
-  - secure: Wa4fJwd5/WQ5mYf2xCIrXkrvBq1xRxTPdPjefHDiokupG72THijHZO0DIDNIqjLydnXN285nZNoDAOKa4cInyhOhMkGjDyO29Tw+7GwFZUlCbqKAauJj4lLEkIHAzKbclpfQDr6JZrUZHVah9oUlkeXZMi5AffNB8CuIRkQZKjk=
+  - secure: E+n+AODvvk2YvS52VHURqweisE8r1JKh1qGZ1YajC6KpfEe3ARKWaiG90j6pDs0OXkGhZZYQbu233YZWTjOjyz81L9eU931hJ3WYrvE6JZSiTA7Rrj/ZlFwfFRkHZ/BnenhX2gFWqQQXj9PT++a8uiinKz50ui1uDlrqEcvsdNk=
 deploy:
   provider: pypi
   user:
