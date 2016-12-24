@@ -9,7 +9,7 @@ matrix:
   - os: linux
     python: pypy
   - os: linux
-    python: pypy3
+    python: pypy-5.3.1
   - os: osx
     language: generic
     env: PYTHON=python PIP=pip
