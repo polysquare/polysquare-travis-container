@@ -193,7 +193,7 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                     )
                 argv[0] = abs_argv0
 
-            raise RuntimeError("Will Popen " + repr(argv))
+            sys.stderr.write("Will Popen " + repr(argv) + "\n")
             executed_cmd = subprocess.Popen(argv,
                                             stdout=stdout,
                                             stderr=stderr,
