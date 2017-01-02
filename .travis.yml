@@ -25,7 +25,9 @@ install:
 - eval "$(curl -LSs --connect-timeout 2 --retry 100 public-travis-scripts.polysquare.org/bootstrap.py
   | python /dev/stdin -d $(pwd)/container -s container-setup.py -e bash -p /dev/stdout)"
 script:
-- polysquare_run check/python/check.py
+- python setup.py install
+- python travis.py
+#- polysquare_run check/python/check.py
 before_cache:
 - polysquare_cleanup
 after_success:
