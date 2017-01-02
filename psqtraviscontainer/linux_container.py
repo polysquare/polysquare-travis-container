@@ -508,9 +508,8 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
         remove = [l for l in list(pkgs ^ required_packages[release]) if len(l)]
 
         if len(remove):
-            cont.execute_success(["echo",
-                                  "Hello, world"],
-                                 minimal_bind=True)
+            cont.execute_success(["/bin/echo",
+                                  "Hello, world"])
 
             cont.execute_success(["dpkg",
                                   "--purge",
