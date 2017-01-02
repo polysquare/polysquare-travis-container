@@ -22,7 +22,9 @@ addons:
     packages:
     - pandoc
 install:
-- pip install -r requirements.txt
+- eval "$(curl -LSs --connect-timeout 2 --retry 100 public-travis-scripts.polysquare.org/bash/osx-python.sh)"
+- eval "$(curl -LSs --connect-timeout 2 --retry 100 public-travis-scripts.polysquare.org/bootstrap.py
+  | python /dev/stdin -d $(pwd)/container -s container-setup.py -e bash -p /dev/stdout)"
 script:
 - python setup.py install
 - psq-travis-container-create --distro=Ubuntu --release=precise --local container
