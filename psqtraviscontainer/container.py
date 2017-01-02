@@ -193,8 +193,6 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                     )
                 argv[0] = abs_argv0
 
-            if len(argv) > 4 and argv[4] == "dpkg":
-                raise RuntimeError("Will Popen " + repr(argv))
             executed_cmd = subprocess.Popen(argv,
                                             stdout=stdout,
                                             stderr=stderr,
@@ -231,5 +229,7 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                 sys.stderr.write(stdout_data)
 
             sys.stderr.write(stderr_data)
-            raise RuntimeError("""{0} failed with {1}""".format(" ".join(argv),
-                                                                returncode))
+            raise RuntimeError("""{0} failed with {1} {2} {3}""".format(" ".join(argv),
+                                                                returncode,
+                                                                stdout_data,
+                                                                stderr_data))
