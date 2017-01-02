@@ -296,7 +296,7 @@ DISTRIBUTIONS = [  # suppress(unused-variable)
                         "releases/12.04.3/release/"
                         "ubuntu-core-12.04.3-core-{arch}.tar.gz"),
                    arch=["i386", "amd64", "armhf"],
-                   archfetch=architecture.Alias.debian,),
+                   archfetch=architecture.Alias.debian),
     LinuxLocalInfo("Ubuntu",
                    release="trusty",
                    url=("http://old-releases.ubuntu.com/releases/ubuntu-core/"
