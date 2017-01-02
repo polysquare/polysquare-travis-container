@@ -26,6 +26,7 @@ from nose_parameterized import parameterized
 
 from psqtraviscontainer import architecture
 from psqtraviscontainer import create
+from psqtraviscontainer import distro
 from psqtraviscontainer import use
 
 from psqtraviscontainer.architecture import Alias
