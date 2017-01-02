@@ -23,6 +23,11 @@ system files. `proot` allow allows for different architectures to be
 specified as well, which are emulated transparently using the
 `qemu-user-mode` tool.
 
+For Linux, an alternative 'local' option is also provided which does not
+incur the overhead of `proot` but is not as flexible. Sadly, on Travis-CI,
+`proot` no longe functions correctly and so the latter mode of operation
+is required.
+
 Status
 ------
 
