@@ -27,7 +27,7 @@ install:
 script:
 - python setup.py install
 - psq-travis-container-create --distro Ubuntu --release precise --local container
-- psq-travis-container-use container -- echo "Hello, world"
+- psq-travis-container-exec container -- echo "Hello, world"
 - polysquare_run check/python/check.py
 before_cache:
 - polysquare_cleanup
