@@ -123,7 +123,11 @@ def run_create_container(**kwargs):
 
 def default_create_container_arguments():
     """Get set of arguments which would create first known distribution."""
-    distro_config = list(available_distributions())[0]
+    distro_config = distro.lookup({
+        "distro": "Ubuntu",
+        "release": "precise",
+        "local": True
+    })
     arguments = ("distro", "release")
     config = {k: v for k, v in distro_config.items() if k in arguments}
     return config
