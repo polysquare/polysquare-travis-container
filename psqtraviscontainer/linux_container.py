@@ -382,9 +382,9 @@ def _clear_postrm_scripts_in_root(container_root):
         os.remove(os.path.join(scripts_dir, script))
 
 
-def _fetch_distribution(container_root,  # pylint:disable=R0913
-                        proot_distro,
-                        details):
+def fetch_distribution(container_root,  # pylint:disable=R0913
+                       proot_distro,
+                       details):
     """Lazy-initialize distribution and return it."""
     path_to_distro_folder = get_dir_for_distro(container_root,
                                                details)
