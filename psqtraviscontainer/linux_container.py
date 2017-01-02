@@ -9,6 +9,8 @@ from __future__ import unicode_literals
 
 import errno
 
+import fnmatch
+
 import os
 
 import platform
@@ -350,6 +352,20 @@ def _extract_distro_archive(distro_archive_file, distro_folder):
                     os.chmod(path, os.stat(path).st_mode | stat.S_IRWXU)
                 except OSError:   # suppress(pointless-except)
                     pass
+
+
+def _clear_postrm_scripts_in_root(container_root):
+    """Remove any post-rm scripts.
+
+    These scripts get run when we try to remove packages, which isn't what
+    we want, since that causes dpkg to try and call chroot, which fails
+    when we aren't root.
+    """
+    scripts_dir = os.path.join(container_root, "var", "lib", "dpkg", "info")
+    for script in fnmatch.filter(os.listdir(scripts_dir), "*.postrm"):
+        os.remove(os.path.join(scripts_dir, script))
+    for script in fnmatch.filter(os.listdir(scripts_dir), "*.prerm"):
+        os.remove(os.path.join(scripts_dir, script))
 
 
 def _fetch_distribution(container_root,  # pylint:disable=R0913
