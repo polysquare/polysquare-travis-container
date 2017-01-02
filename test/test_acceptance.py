@@ -123,8 +123,6 @@ def run_create_container(**kwargs):
 
 def default_create_container_arguments():
     """Get set of arguments which would create first known distribution."""
-    import pprint
-    raise RuntimeError(pprint.pformat(list(available_distributions())))
     distro_config = list(available_distributions())[0]
     arguments = ("distro", "release")
     config = {k: v for k, v in distro_config.items() if k in arguments}
