@@ -27,6 +27,7 @@ install:
 script:
 - python setup.py install
 - psq-travis-container-create --distro=Ubuntu --release=precise --local container
+- ./container/_proot/bin/proot -S container/ubuntu-core-12.04.3-core-amd64.tar.gz.root/ echo "Hello, world"
 - python travis.py
 #- polysquare_run check/python/check.py
 before_cache:
