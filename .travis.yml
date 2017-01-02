@@ -25,6 +25,9 @@ install:
 - eval "$(curl -LSs --connect-timeout 2 --retry 100 public-travis-scripts.polysquare.org/bootstrap.py
   | python /dev/stdin -d $(pwd)/container -s container-setup.py -e bash -p /dev/stdout)"
 script:
+- python setup.py install
+- psq-travis-container-create --distro Ubuntu --release precise --local container
+- psq-travis-container-use container -- echo "Hello, world"
 - polysquare_run check/python/check.py
 before_cache:
 - polysquare_cleanup
