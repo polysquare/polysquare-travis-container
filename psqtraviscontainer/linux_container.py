@@ -399,7 +399,7 @@ def fetch_distribution(container_root,  # pylint:disable=R0913
                     _extract_distro_archive(archive_file,
                                             path_to_distro_folder)
 
-    def _minimize_ubuntu(cont):
+    def _minimize_ubuntu(cont, root):
         """Reduce the install footprint of ubuntu as much as possible."""
         required_packages = {
             "precise": set([
@@ -532,6 +532,10 @@ def fetch_distribution(container_root,  # pylint:disable=R0913
         os.environ["DEBIAN_FRONTEND"] = "noninteractive"
 
         pkgs = set(cont.execute(["dpkg-query",
+                                 "--admindir={}".format(os.path.join(root,
+                                                                     "var",
+                                                                     "lib",
+                                                                     "dpkg")),
                                  "-Wf",
                                  "${Package}\n"])[1].split("\n"))
         release = details["release"]
@@ -539,6 +543,7 @@ def fetch_distribution(container_root,  # pylint:disable=R0913
 
         if len(remove):
             cont.execute_success(["dpkg",
+                                  "--root={}".format(root),
                                   "--purge",
                                   "--force-all"] + remove,
                                  minimal_bind=True)
@@ -562,6 +567,8 @@ def fetch_distribution(container_root,  # pylint:disable=R0913
                                 details["arch"],
                                 details["pkgsys"])
 
+    minimize_actions = defaultdict(lambda: lambda c, p: None)
+
     try:
         os.stat(path_to_distro_folder)
         use_existing_msg = ("""\N{check mark} Using existing folder for """
@@ -569,6 +576,7 @@ def fetch_distribution(container_root,  # pylint:disable=R0913
                             """{distro} {release} {arch}\n""")
         printer.unicode_safe(colored.green(use_existing_msg.format(**details),
                                            bold=True))
+        return (linux_cont, minimize_actions)
     except OSError:
         # Download the distribution tarball in the distro dir
         _download_distro(details, path_to_distro_folder)
@@ -577,9 +585,8 @@ def fetch_distribution(container_root,  # pylint:disable=R0913
         # was just initially downloaded
         minimize_actions = defaultdict(lambda: lambda c: None,
                                        Ubuntu=_minimize_ubuntu)
-        minimize_actions[details["distro"]](linux_cont)
 
-    return linux_cont
+        return (linux_cont, minimize_actions)
 
 
 def container_for_directory(container_dir, distro_config):
@@ -615,9 +622,10 @@ def create(container_dir, distro_config):
                                              distro_config["arch"])
 
     # Now fetch the distribution tarball itself, if we specified one
-    cont = _fetch_distribution(container_dir,
-                               proot_distro,
-                               distro_config)
+    cont, minimize_actions = fetch_distribution(container_dir,
+                                                proot_distro,
+                                                distro_config)
+    minimize_actions[distro_config["distro"]](cont, "/")
 
     return cont
 
