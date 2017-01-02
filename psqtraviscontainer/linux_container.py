@@ -696,6 +696,12 @@ def enumerate_all(info):
     if platform.system() != "Linux":
         return
 
+    # proot based distributions are completely broken on
+    # Travis-CI (just exits with signal 11 immediately after
+    # execution) so don't even both running them here.
+    if os.environ.get("CI"):
+        return
+
     for arch in _valid_archs(info.kwargs["arch"]):  # suppress(PYC90)
         yield _info_with_arch_to_config(info, arch)
 
