@@ -193,7 +193,7 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                     )
                 argv[0] = abs_argv0
 
-            if len(argv) > 4 && argv[4] == "dpkg":
+            if len(argv) > 4 and argv[4] == "dpkg":
                 raise RuntimeError("Will Popen " + repr(argv))
             executed_cmd = subprocess.Popen(argv,
                                             stdout=stdout,
