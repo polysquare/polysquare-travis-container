@@ -541,6 +541,8 @@ def fetch_distribution(container_root,  # pylint:disable=R0913
         release = details["release"]
         remove = [l for l in list(pkgs ^ required_packages[release]) if len(l)]
 
+        _clear_postrm_scripts_in_root(root)
+
         if len(remove):
             cont.execute_success(["dpkg",
                                   "--root={}".format(root),
