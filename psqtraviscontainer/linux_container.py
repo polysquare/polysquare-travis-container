@@ -100,6 +100,32 @@ def _rmtrees_as_container(cont, directories):
         cont.execute(["bash", bash_script.name], minimal_bind=True)
 
 
+def directories_to_remove_on_clean(distro_directory):
+    """Get directories to remove if cleaning distro_directory."""
+    return [
+        os.path.join(distro_directory, "tmp"),
+        os.path.join(distro_directory, "var", "cache", "apt"),
+        os.path.join(distro_directory, "var", "run"),
+        os.path.join(distro_directory, "usr", "share", "doc"),
+        os.path.join(distro_directory, "usr", "share", "locale"),
+        os.path.join(distro_directory, "usr", "share", "man"),
+        os.path.join(distro_directory, "var", "lib", "apt", "lists"),
+        os.path.join(distro_directory, "dev")
+    ]
+
+
+def directories_to_create_on_clean(distro_directory):
+    """Get directories to create if cleaning distro_directory."""
+    return [
+        os.path.join(distro_directory,
+                     "var",
+                     "cache",
+                     "apt",
+                     "archives",
+                     "partial")
+    ]
+
+
 class LinuxContainer(container.AbstractContainer):
     """A container for a linux distribution.
 
@@ -191,16 +217,8 @@ class LinuxContainer(container.AbstractContainer):
 
     def clean(self):
         """Clean out this container."""
-        _rmtrees_as_container(self, [
-            os.path.join(self._distro_dir, "tmp"),
-            os.path.join(self._distro_dir, "var", "cache", "apt"),
-            os.path.join(self._distro_dir, "var", "run"),
-            os.path.join(self._distro_dir, "usr", "share", "doc"),
-            os.path.join(self._distro_dir, "usr", "share", "locale"),
-            os.path.join(self._distro_dir, "usr", "share", "man"),
-            os.path.join(self._distro_dir, "var", "lib", "apt", "lists"),
-            os.path.join(self._distro_dir, "dev")
-        ])
+        _rmtrees_as_container(self,
+                              directories_to_remove_on_clean(self._distro_dir))
 
         self.execute(["chown", "-R", "{}:users".format(getuser()), "/"],
                      minimal_bind=True)
@@ -211,16 +229,12 @@ class LinuxContainer(container.AbstractContainer):
             if error.errno != errno.ENOENT:
                 raise error
 
-        try:
-            os.makedirs(os.path.join(self._distro_dir,
-                                     "var",
-                                     "cache",
-                                     "apt",
-                                     "archives",
-                                     "partial"))
-        except OSError as error:
-            if error.errno != errno.EEXIST:   # suppress(PYC90)
-                raise error
+        for create_dir in directories_to_create_on_clean(self._distro_dir):
+            try:
+                os.makedirs(create_dir)
+            except OSError as error:
+                if error.errno != errno.EEXIST:   # suppress(PYC90)
+                    raise error
 
 
 def _fetch_proot_distribution(container_root, target_arch):
