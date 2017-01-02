@@ -9,9 +9,13 @@
 
 from __future__ import unicode_literals
 
+import errno
+
 import os
 
 import platform
+
+import shutil
 
 from psqtraviscontainer import architecture
 from psqtraviscontainer import container
@@ -147,7 +151,29 @@ class LocalLinuxContainer(container.AbstractContainer):
 
     def clean(self):
         """Clean out this container."""
-        self._linux_cont.clean()
+        remove_directories = linux_container.directories_to_remove_on_clean(
+            self._package_root
+        )
+        for directory in remove_directories:
+            if os.path.islink(directory):
+                continue
+
+            try:
+                shutil.rmtree(os.path.join(self._package_root, directory))
+            except OSError as error:
+                if error.errno != errno.ENOENT:
+                    raise error
+
+        create_directories = linux_container.directories_to_create_on_clean(
+            self._package_root
+        )
+
+        for directory in create_directories:
+            try:
+                os.makedirs(directory)
+            except OSError as error:
+                if error.errno != errno.EEXIST:   # suppress(PYC90)
+                    raise error
 
 
 def container_for_directory(container_dir, distro_config):
@@ -170,15 +196,20 @@ def container_for_directory(container_dir, distro_config):
 
 def create(container_dir, distro_config):
     """Create a container using proot."""
-    cont = linux_container.create(container_dir, distro_config)
+    cont, minimize_actions = linux_container.fetch_distribution(container_dir,
+                                                                None,
+                                                                distro_config)
     path_to_distro_folder = get_dir_for_distro(container_dir,
                                                distro_config)
 
-    return LocalLinuxContainer(cont,
-                               path_to_distro_folder,
-                               distro_config["release"],
-                               distro_config["arch"],
-                               distro_config["pkgsys"])
+    local_container = LocalLinuxContainer(cont,
+                                          path_to_distro_folder,
+                                          distro_config["release"],
+                                          distro_config["arch"],
+                                          distro_config["pkgsys"])
+    minimize_actions[distro_config["distro"]](local_container,
+                                              path_to_distro_folder)
+    return local_container
 
 
 def _info_with_arch_to_config(info, arch):
