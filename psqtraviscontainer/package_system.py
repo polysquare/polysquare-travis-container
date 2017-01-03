@@ -320,7 +320,7 @@ class DpkgLocal(PackageSystem):
 
         root = self._executor.root_filesystem_directory()
         environment = {
-            "APT_CONFIG": os.path.join(root, "etc", "apt.conf")
+            "APT_CONFIG": os.path.join(root, "etc", "apt", "apt.conf")
         }
         _run_task(self._executor,
                   """Update repositories""",
