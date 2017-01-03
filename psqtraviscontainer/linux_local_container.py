@@ -44,14 +44,12 @@ class LocalLinuxContainer(container.AbstractContainer):
     """
 
     def __init__(self,  # suppress(too-many-arguments)
-                 linux_cont,
                  package_root,
                  release,
                  arch,
                  pkg_sys_constructor):
         """Initialize this LocalLinuxContainer, storing its distro config."""
         super(LocalLinuxContainer, self).__init__()
-        self._linux_cont = linux_cont
         self._arch = arch
         self._package_root = package_root
         self._pkgsys = pkg_sys_constructor(release, arch, self)
@@ -70,14 +68,7 @@ class LocalLinuxContainer(container.AbstractContainer):
         This returned tuple will have no environment variables set, but the
         proot command to enter this container will be prepended to the
         argv provided.
-
-        Set the requires_full_access keyword to run this command through the
-        proot wrapper.
         """
-        if kwargs.get("requires_full_access", None):
-            # suppress(protected-access)
-            return self._linux_cont._subprocess_popen_arguments(argv,
-                                                                **kwargs)
 
         popen_args = self.__class__.PopenArguments
         prepend_env = {
@@ -182,13 +173,10 @@ def container_for_directory(container_dir, distro_config):
     Also take into account arguments in result to look up the the actual
     directory for this distro.
     """
-    cont = linux_container.container_for_directory(container_dir,
-                                                   distro_config)
     path_to_distro_folder = get_dir_for_distro(container_dir,
                                                distro_config)
 
-    return LocalLinuxContainer(cont,
-                               path_to_distro_folder,
+    return LocalLinuxContainer(path_to_distro_folder,
                                distro_config["release"],
                                distro_config["arch"],
                                distro_config["pkgsys"])
@@ -196,14 +184,13 @@ def container_for_directory(container_dir, distro_config):
 
 def create(container_dir, distro_config):
     """Create a container using proot."""
-    cont, minimize_actions = linux_container.fetch_distribution(container_dir,
-                                                                None,
-                                                                distro_config)
+    _, minimize_actions = linux_container.fetch_distribution(container_dir,
+                                                             None,
+                                                             distro_config)
     path_to_distro_folder = get_dir_for_distro(container_dir,
                                                distro_config)
 
-    local_container = LocalLinuxContainer(cont,
-                                          path_to_distro_folder,
+    local_container = LocalLinuxContainer(path_to_distro_folder,
                                           distro_config["release"],
                                           distro_config["arch"],
                                           distro_config["pkgsys"])
