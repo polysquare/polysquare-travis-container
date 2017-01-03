@@ -253,7 +253,15 @@ class DpkgLocal(PackageSystem):
             "Acquire::Queue-Mode \"host\";",
             "Dir \"" + root + "\";",
             "Dir::Cache \"" + root + "/var/cache/apt\";",
-            "Dir::State \"" + root + "/var/lib/apt\";"
+            "Dir::State \"" + root + "/var/lib/apt\";",
+            "Dir::State::status \"" + root + "/var/lib/dpkg/status\";",
+            "Dir::Bin::Solvers \"" + root + "/usr/lib/apt/solvers\";",
+            "Dir::Bin::Planners \"" + root + "/usr/lib/apt/planners\";",
+            "Dir::Bin::Solvers \"" + root + "/usr/lib/apt/solvers\";",
+            "Dir::Bin::Methods \"" + root + "/usr/lib/apt/methods\";",
+            "Dir::Bin::Dpkg \"" + root + "/usr/bin/dpkg.w\";",
+            "Dir::Etc \"" + root + "/etc/apt\";",
+            "Dir::Log \"" + root + "/var/log/apt\";"
         ])
         with open(os.path.join(root, "etc", "apt.conf"), "w") as config_file:
             config_file.write(config_file_contents)
