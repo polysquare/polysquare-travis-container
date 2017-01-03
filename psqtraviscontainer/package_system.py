@@ -263,7 +263,8 @@ class DpkgLocal(PackageSystem):
             "Dir::Etc \"" + root + "/etc/apt\";",
             "Dir::Log \"" + root + "/var/log/apt\";"
         ])
-        with open(os.path.join(root, "etc", "apt.conf"), "w") as config_file:
+        apt_config_path = os.path.join(root, "etc", "apt", "apt.conf")
+        with open(apt_config_path, "w") as config_file:
             config_file.write(config_file_contents)
 
     def add_repositories(self, repos):
