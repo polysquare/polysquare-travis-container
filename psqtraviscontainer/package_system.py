@@ -62,7 +62,6 @@ def _run_task(executor, description, argv, env=None, detail=None):
      stderr_data) = executor.execute(argv,
                                      output_modifier=wrapper,
                                      live_output=True,
-                                     requires_full_access=True,
                                      env=env)
     sys.stderr.write(stderr_data)
 
