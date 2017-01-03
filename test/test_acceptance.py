@@ -123,17 +123,21 @@ def run_create_container(**kwargs):
     return temp_dir
 
 
-def default_create_container_arguments():
+def default_create_container_arguments(local=True):
     """Get set of arguments which would create first known distribution."""
     distro_config = list(available_distributions())[0]
     arguments = ("distro", "release")
     config = {k: v for k, v in distro_config.items() if k in arguments}
+
+    # We must force local to true here so that it gets passed to
+    # the underlying container
+    config["local"] = local
     return config
 
 
-def run_create_default_container():
+def run_create_default_container(local=True):
     """Run main() and return container for first known distribution."""
-    return run_create_container(**(default_create_container_arguments()))
+    return run_create_container(**(default_create_container_arguments(local)))
 
 
 def run_use_container_on_dir(directory, **kwargs):
