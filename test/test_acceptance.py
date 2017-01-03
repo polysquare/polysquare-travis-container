@@ -167,6 +167,13 @@ def test_case_requiring_platform(system):
 class TestCreateProot(test_case_requiring_platform("Linux")):
     """A test case for proot creation basics."""
 
+    def setUp(self):
+        """Set up the test case and check that we can run it."""
+        if os.environ.get("TRAVIS", False):
+            self.skipTest("""Cannot run proot on travis-ci""")
+
+        super(TestCreateProot, self).setUp()
+
     def test_create_proot_distro(self):
         """Check that we create a proot distro."""
         with run_create_default_container() as container:
@@ -282,6 +289,9 @@ class TestProotDistribution(ContainerInspectionTestCase):
         """Set up TestProotDistribution."""
         if platform.system() != "Linux":
             self.skipTest("""proot is only available on linux""")
+
+        if os.environ.get("TRAVIS", False):
+            self.skipTest("""Cannot run proot on travis-ci""")
 
         super(TestProotDistribution, self).setUp()
 
