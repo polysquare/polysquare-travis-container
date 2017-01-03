@@ -261,6 +261,12 @@ def make_container_inspection_test_case(**create_container_kwargs):
         @classmethod
         def setUpClass(cls):  # suppress(N802)
             """Set up container for all tests in this test case."""
+            # Detect if we're about to create a non-local container on an
+            # environment that doesn't support it
+            if (create_container_kwargs.get("local", None) is False and
+                    os.environ.get("TRAVIS", None)):
+                return
+
             with temporary_environment(_FORCE_DOWNLOAD_QEMU="True"):
                 apply_kwargs = create_container_kwargs
                 config = default_create_container_arguments(**apply_kwargs)
