@@ -58,8 +58,10 @@ def _convert_to_switch_args(kwargs):
             return str(value)
 
     for key, value in kwargs.items():
-        arguments.append("--{0}".format(key))
-        arguments.append(_get_representation(value))
+        if not isinstance(value, bool) or value:
+            arguments.append("--{0}".format(key))
+        if not isinstance(value, bool):
+            arguments.append(_get_representation(value))
 
     return arguments
 
