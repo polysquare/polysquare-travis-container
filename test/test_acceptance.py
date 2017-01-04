@@ -574,6 +574,7 @@ def get_distribution_tests():
                                 config[key][0].upper().encode() +
                                 config[key][1:].encode())
         name = "Test{0}".format(name_array.decode("ascii"))
+        print("Create distro test with name {}".format(name))
 
         distro = config["distro"]
         repositories_to_add = _DISTRO_INFO[distro].repo
