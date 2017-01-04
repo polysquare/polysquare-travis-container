@@ -380,7 +380,8 @@ def _clear_postrm_scripts_in_root(container_root):
         os.remove(os.path.join(scripts_dir, script))
     for script in fnmatch.filter(os.listdir(scripts_dir), "*.prerm"):
         os.remove(os.path.join(scripts_dir, script))
-
+    for script in fnmatch.filter(os.listdir(scripts_dir), "*.postinst"):
+        os.remove(os.path.join(scripts_dir, script))
 
 def fetch_distribution(container_root,  # pylint:disable=R0913
                        proot_distro,
