@@ -478,7 +478,7 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
         def setUpClass(cls):  # suppress(N802)
             """Create a container for all uses of this TemplateDistroTest."""
             with InstallationConfig(packages, repos) as command_config:
-                keys = ("distro", "release", "local")
+                keys = ("distro", "release")
                 kwargs.update({k: v for k, v in config.items() if k in keys})
 
                 print("Attempting to create container for " + test_name + " " + repr(kwargs))
@@ -591,6 +591,10 @@ def get_distribution_tests():
         except KeyError:  # suppress(pointless-except)
             pass
 
+        # Set the --local switch if the installation type is local. This is
+        # because we pass the keyword arguments to the main function of
+        # psq-travis-container-create
+        kwargs["local"] = (config.get("installation", None) == "local")
         tests[name] = _create_distro_test(name,
                                           config,
                                           repositories_to_add,
