@@ -9,9 +9,13 @@
 
 from __future__ import unicode_literals
 
+import errno
+
 import os
 
 import platform
+
+import shutil
 
 from psqtraviscontainer import architecture
 from psqtraviscontainer import container
@@ -40,14 +44,12 @@ class LocalLinuxContainer(container.AbstractContainer):
     """
 
     def __init__(self,  # suppress(too-many-arguments)
-                 linux_cont,
                  package_root,
                  release,
                  arch,
                  pkg_sys_constructor):
         """Initialize this LocalLinuxContainer, storing its distro config."""
         super(LocalLinuxContainer, self).__init__()
-        self._linux_cont = linux_cont
         self._arch = arch
         self._package_root = package_root
         self._pkgsys = pkg_sys_constructor(release, arch, self)
@@ -66,15 +68,7 @@ class LocalLinuxContainer(container.AbstractContainer):
         This returned tuple will have no environment variables set, but the
         proot command to enter this container will be prepended to the
         argv provided.
-
-        Set the requires_full_access keyword to run this command through the
-        proot wrapper.
         """
-        if kwargs.get("requires_full_access", None):
-            # suppress(protected-access)
-            return self._linux_cont._subprocess_popen_arguments(argv,
-                                                                **kwargs)
-
         popen_args = self.__class__.PopenArguments
         prepend_env = {
             "LD_LIBRARY_PATH": os.pathsep.join([
@@ -147,7 +141,29 @@ class LocalLinuxContainer(container.AbstractContainer):
 
     def clean(self):
         """Clean out this container."""
-        self._linux_cont.clean()
+        remove_directories = linux_container.directories_to_remove_on_clean(
+            self._package_root
+        )
+        for directory in remove_directories:
+            if os.path.islink(directory):
+                continue
+
+            try:
+                shutil.rmtree(os.path.join(self._package_root, directory))
+            except OSError as error:
+                if error.errno != errno.ENOENT:
+                    raise error
+
+        create_directories = linux_container.directories_to_create_on_clean(
+            self._package_root
+        )
+
+        for directory in create_directories:
+            try:
+                os.makedirs(directory)
+            except OSError as error:
+                if error.errno != errno.EEXIST:   # suppress(PYC90)
+                    raise error
 
 
 def container_for_directory(container_dir, distro_config):
@@ -156,13 +172,10 @@ def container_for_directory(container_dir, distro_config):
     Also take into account arguments in result to look up the the actual
     directory for this distro.
     """
-    cont = linux_container.container_for_directory(container_dir,
-                                                   distro_config)
     path_to_distro_folder = get_dir_for_distro(container_dir,
                                                distro_config)
 
-    return LocalLinuxContainer(cont,
-                               path_to_distro_folder,
+    return LocalLinuxContainer(path_to_distro_folder,
                                distro_config["release"],
                                distro_config["arch"],
                                distro_config["pkgsys"])
@@ -170,15 +183,19 @@ def container_for_directory(container_dir, distro_config):
 
 def create(container_dir, distro_config):
     """Create a container using proot."""
-    cont = linux_container.create(container_dir, distro_config)
+    _, minimize_actions = linux_container.fetch_distribution(container_dir,
+                                                             None,
+                                                             distro_config)
     path_to_distro_folder = get_dir_for_distro(container_dir,
                                                distro_config)
 
-    return LocalLinuxContainer(cont,
-                               path_to_distro_folder,
-                               distro_config["release"],
-                               distro_config["arch"],
-                               distro_config["pkgsys"])
+    local_container = LocalLinuxContainer(path_to_distro_folder,
+                                          distro_config["release"],
+                                          distro_config["arch"],
+                                          distro_config["pkgsys"])
+    minimize_actions[distro_config["distro"]](local_container,
+                                              path_to_distro_folder)
+    return local_container
 
 
 def _info_with_arch_to_config(info, arch):
@@ -265,7 +282,7 @@ DISTRIBUTIONS = [  # suppress(unused-variable)
                         "releases/12.04.3/release/"
                         "ubuntu-core-12.04.3-core-{arch}.tar.gz"),
                    arch=["i386", "amd64", "armhf"],
-                   archfetch=architecture.Alias.debian,),
+                   archfetch=architecture.Alias.debian),
     LinuxLocalInfo("Ubuntu",
                    release="trusty",
                    url=("http://old-releases.ubuntu.com/releases/ubuntu-core/"
