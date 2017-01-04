@@ -69,7 +69,6 @@ class LocalLinuxContainer(container.AbstractContainer):
         proot command to enter this container will be prepended to the
         argv provided.
         """
-
         popen_args = self.__class__.PopenArguments
         prepend_env = {
             "LD_LIBRARY_PATH": os.pathsep.join([
