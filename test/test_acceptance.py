@@ -26,6 +26,7 @@ from nose_parameterized import parameterized
 
 from psqtraviscontainer import architecture
 from psqtraviscontainer import create
+from psqtraviscontainer import distro
 from psqtraviscontainer import use
 
 from psqtraviscontainer.architecture import Alias
@@ -58,8 +59,10 @@ def _convert_to_switch_args(kwargs):
             return str(value)
 
     for key, value in kwargs.items():
-        arguments.append("--{0}".format(key))
-        arguments.append(_get_representation(value))
+        if not isinstance(value, bool) or value:
+            arguments.append("--{0}".format(key))
+        if not isinstance(value, bool):
+            arguments.append(_get_representation(value))
 
     return arguments
 
@@ -121,17 +124,27 @@ def run_create_container(**kwargs):
     return temp_dir
 
 
-def default_create_container_arguments():
+def default_create_container_arguments(local=True):
     """Get set of arguments which would create first known distribution."""
-    distro_config = list(available_distributions())[0]
+    # Sanity check that we can find a known release that works
+    distro_config = distro.lookup({
+        "distro": "Ubuntu",
+        "release": "precise",
+        "local": local,
+        "arch": architecture.Alias.universal(platform.machine())
+    })
     arguments = ("distro", "release")
     config = {k: v for k, v in distro_config.items() if k in arguments}
+
+    # We must force local to true here so that it gets passed to
+    # the underlying container
+    config["local"] = local
     return config
 
 
-def run_create_default_container():
+def run_create_default_container(local=True):
     """Run main() and return container for first known distribution."""
-    return run_create_container(**(default_create_container_arguments()))
+    return run_create_container(**(default_create_container_arguments(local)))
 
 
 def run_use_container_on_dir(directory, **kwargs):
@@ -161,9 +174,16 @@ def test_case_requiring_platform(system):
 class TestCreateProot(test_case_requiring_platform("Linux")):
     """A test case for proot creation basics."""
 
+    def setUp(self):
+        """Set up the test case and check that we can run it."""
+        if os.environ.get("TRAVIS", False):
+            self.skipTest("""Cannot run proot on travis-ci""")
+
+        super(TestCreateProot, self).setUp()
+
     def test_create_proot_distro(self):
         """Check that we create a proot distro."""
-        with run_create_default_container() as container:
+        with run_create_default_container(local=False) as container:
             self.assertThat(have_proot_distribution(container),
                             FileExists())
 
@@ -174,12 +194,12 @@ class TestCreateProot(test_case_requiring_platform("Linux")):
         make sure that across two runs they are actual. If they were,
         then no re-downloading took place.
         """
-        with run_create_default_container() as container:
+        with run_create_default_container(local=False) as container:
             path_to_proot_stamp = have_proot_distribution(container)
 
             first_timestamp = os.stat(path_to_proot_stamp).st_mtime
 
-            config = default_create_container_arguments()
+            config = default_create_container_arguments(local=False)
             run_create_container_on_dir(container, **config)
 
             second_timestamp = os.stat(path_to_proot_stamp).st_mtime
@@ -212,47 +232,61 @@ def cached_downloads():
         sys.stderr = original_stderr
 
 
-class ContainerInspectionTestCase(TestCase):
-    """TestCase where container persists until all tests have completed.
+def make_container_inspection_test_case(**create_container_kwargs):
+    """Make a TestCase which persists a container until test are complete.
 
-    No modifications should be made to the container during any
-    individual test. The order of tests should not be relied upon.
+    create_container_kwargs is stored and applied to creating the container -
+    this allows us to switch between proot-based and non-proot containers.
     """
+    class ContainerInspectionTestCase(TestCase):
+        """TestCase where container persists until all tests have completed.
 
-    container_temp_dir = None
+        No modifications should be made to the container during any
+        individual test. The order of tests should not be relied upon.
+        """
 
-    def __init__(self, *args, **kwargs):
-        """Initialize class."""
-        cls = ContainerInspectionTestCase
-        super(cls, self).__init__(*args, **kwargs)
-        self.container_dir = None
+        container_temp_dir = None
 
-    def setUp(self):  # suppress(N802)
-        """Set up container dir."""
-        super(ContainerInspectionTestCase, self).setUp()
-        self.container_dir = self.__class__.container_temp_dir.name
+        def __init__(self, *args, **kwargs):
+            """Initialize class."""
+            cls = ContainerInspectionTestCase
+            super(cls, self).__init__(*args, **kwargs)
+            self.container_dir = None
 
-    @classmethod
-    def create_container(cls, **kwargs):
-        """Overridable method to create a container for this test case."""
-        cls.container_temp_dir = run_create_container(**kwargs)
+        def setUp(self):  # suppress(N802)
+            """Set up container dir."""
+            super(ContainerInspectionTestCase, self).setUp()
+            self.container_dir = self.__class__.container_temp_dir.name
 
-    # Suppress flake8 complaints about uppercase characters in function names,
-    # these functions are overloaded
-    @classmethod
-    def setUpClass(cls):  # suppress(N802)
-        """Set up container for all tests in this test case."""
-        with temporary_environment(_FORCE_DOWNLOAD_QEMU="True"):
-            config = default_create_container_arguments()
-            cls.create_container(**config)
+        @classmethod
+        def create_container(cls, **kwargs):
+            """Overridable method to create a container for this test case."""
+            cls.container_temp_dir = run_create_container(**kwargs)
 
-    @classmethod
-    def tearDownClass(cls):  # suppress(N802)
-        """Dissolve container for all tests in this test case."""
-        if cls.container_temp_dir:
-            cls.container_temp_dir.dissolve()
-            cls.container_temp_dir = None
+        # Suppress flake8 complaints about uppercase characters in function
+        # names, these functions are overloaded
+        @classmethod
+        def setUpClass(cls):  # suppress(N802)
+            """Set up container for all tests in this test case."""
+            # Detect if we're about to create a non-local container on an
+            # environment that doesn't support it
+            if (create_container_kwargs.get("local", None) is False and
+                    os.environ.get("TRAVIS", None)):
+                return
 
+            with temporary_environment(_FORCE_DOWNLOAD_QEMU="True"):
+                apply_kwargs = create_container_kwargs
+                config = default_create_container_arguments(**apply_kwargs)
+                cls.create_container(**config)
+
+        @classmethod
+        def tearDownClass(cls):  # suppress(N802)
+            """Dissolve container for all tests in this test case."""
+            if cls.container_temp_dir:
+                cls.container_temp_dir.dissolve()
+                cls.container_temp_dir = None
+
+    return ContainerInspectionTestCase
 
 QEMU_ARCHITECTURES = [
     "arm",
@@ -269,13 +303,16 @@ def _format_arch(func, num, params):
     return func.__doc__.format(arch=params[0][0])
 
 
-class TestProotDistribution(ContainerInspectionTestCase):
+class TestProotDistribution(make_container_inspection_test_case(local=False)):
     """Tests to inspect a proot distribution itself."""
 
     def setUp(self):   # suppress(N802)
         """Set up TestProotDistribution."""
         if platform.system() != "Linux":
             self.skipTest("""proot is only available on linux""")
+
+        if os.environ.get("TRAVIS", False):
+            self.skipTest("""Cannot run proot on travis-ci""")
 
         super(TestProotDistribution, self).setUp()
 
@@ -424,7 +461,7 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
                         test_files,
                         **kwargs):
     """Create a TemplateDistroTest class."""
-    class TemplateDistroTest(ContainerInspectionTestCase):
+    class TemplateDistroTest(make_container_inspection_test_case()):
         """Template for checking a distro proot."""
 
         def __init__(self, *args, **kwargs):
@@ -444,9 +481,13 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
                 keys = ("distro", "release")
                 kwargs.update({k: v for k, v in config.items() if k in keys})
 
-                cls.create_container(repos=command_config.repos_path,
-                                     packages=command_config.packages_path,
-                                     **kwargs)
+                print("Attempting to create container for " + test_name + " " + repr(kwargs))
+                try:
+                    cls.create_container(repos=command_config.repos_path,
+                                         packages=command_config.packages_path,
+                                         **kwargs)
+                except Exception as e:
+                    print("Caught exception " + str(e))
 
         def test_distro_folder_exists(self):
             """Check that distro folder exists for ."""
@@ -537,6 +578,7 @@ def get_distribution_tests():
                                 config[key][0].upper().encode() +
                                 config[key][1:].encode())
         name = "Test{0}".format(name_array.decode("ascii"))
+        print("Create distro test with name {}".format(name))
 
         distro = config["distro"]
         repositories_to_add = _DISTRO_INFO[distro].repo
@@ -549,6 +591,10 @@ def get_distribution_tests():
         except KeyError:  # suppress(pointless-except)
             pass
 
+        # Set the --local switch if the installation type is local. This is
+        # because we pass the keyword arguments to the main function of
+        # psq-travis-container-create
+        kwargs["local"] = (config.get("installation", None) == "local")
         tests[name] = _create_distro_test(name,
                                           config,
                                           repositories_to_add,

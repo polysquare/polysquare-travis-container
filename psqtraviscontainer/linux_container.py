@@ -9,6 +9,8 @@ from __future__ import unicode_literals
 
 import errno
 
+import fnmatch
+
 import os
 
 import platform
@@ -96,6 +98,32 @@ def _rmtrees_as_container(cont, directories):
         bash_script.write(";\n".join([("rm -rf " + d) for d in directories]))
         bash_script.flush()
         cont.execute(["bash", bash_script.name], minimal_bind=True)
+
+
+def directories_to_remove_on_clean(distro_directory):
+    """Get directories to remove if cleaning distro_directory."""
+    return [
+        os.path.join(distro_directory, "tmp"),
+        os.path.join(distro_directory, "var", "cache", "apt"),
+        os.path.join(distro_directory, "var", "run"),
+        os.path.join(distro_directory, "usr", "share", "doc"),
+        os.path.join(distro_directory, "usr", "share", "locale"),
+        os.path.join(distro_directory, "usr", "share", "man"),
+        os.path.join(distro_directory, "var", "lib", "apt", "lists"),
+        os.path.join(distro_directory, "dev")
+    ]
+
+
+def directories_to_create_on_clean(distro_directory):
+    """Get directories to create if cleaning distro_directory."""
+    return [
+        os.path.join(distro_directory,
+                     "var",
+                     "cache",
+                     "apt",
+                     "archives",
+                     "partial")
+    ]
 
 
 class LinuxContainer(container.AbstractContainer):
@@ -189,16 +217,8 @@ class LinuxContainer(container.AbstractContainer):
 
     def clean(self):
         """Clean out this container."""
-        _rmtrees_as_container(self, [
-            os.path.join(self._distro_dir, "tmp"),
-            os.path.join(self._distro_dir, "var", "cache", "apt"),
-            os.path.join(self._distro_dir, "var", "run"),
-            os.path.join(self._distro_dir, "usr", "share", "doc"),
-            os.path.join(self._distro_dir, "usr", "share", "locale"),
-            os.path.join(self._distro_dir, "usr", "share", "man"),
-            os.path.join(self._distro_dir, "var", "lib", "apt", "lists"),
-            os.path.join(self._distro_dir, "dev")
-        ])
+        _rmtrees_as_container(self,
+                              directories_to_remove_on_clean(self._distro_dir))
 
         self.execute(["chown", "-R", "{}:users".format(getuser()), "/"],
                      minimal_bind=True)
@@ -209,16 +229,12 @@ class LinuxContainer(container.AbstractContainer):
             if error.errno != errno.ENOENT:
                 raise error
 
-        try:
-            os.makedirs(os.path.join(self._distro_dir,
-                                     "var",
-                                     "cache",
-                                     "apt",
-                                     "archives",
-                                     "partial"))
-        except OSError as error:
-            if error.errno != errno.EEXIST:   # suppress(PYC90)
-                raise error
+        for create_dir in directories_to_create_on_clean(self._distro_dir):
+            try:
+                os.makedirs(create_dir)
+            except OSError as error:
+                if error.errno != errno.EEXIST:   # suppress(PYC90)
+                    raise error
 
 
 def _fetch_proot_distribution(container_root, target_arch):
@@ -352,9 +368,24 @@ def _extract_distro_archive(distro_archive_file, distro_folder):
                     pass
 
 
-def _fetch_distribution(container_root,  # pylint:disable=R0913
-                        proot_distro,
-                        details):
+def _clear_postrm_scripts_in_root(container_root):
+    """Remove any post-rm scripts.
+
+    These scripts get run when we try to remove packages, which isn't what
+    we want, since that causes dpkg to try and call chroot, which fails
+    when we aren't root.
+    """
+    scripts_dir = os.path.join(container_root, "var", "lib", "dpkg", "info")
+    for script in fnmatch.filter(os.listdir(scripts_dir), "*.postrm"):
+        os.remove(os.path.join(scripts_dir, script))
+    for script in fnmatch.filter(os.listdir(scripts_dir), "*.prerm"):
+        os.remove(os.path.join(scripts_dir, script))
+    for script in fnmatch.filter(os.listdir(scripts_dir), "*.postinst"):
+        os.remove(os.path.join(scripts_dir, script))
+
+def fetch_distribution(container_root,  # pylint:disable=R0913
+                       proot_distro,
+                       details):
     """Lazy-initialize distribution and return it."""
     path_to_distro_folder = get_dir_for_distro(container_root,
                                                details)
@@ -369,7 +400,7 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
                     _extract_distro_archive(archive_file,
                                             path_to_distro_folder)
 
-    def _minimize_ubuntu(cont):
+    def _minimize_ubuntu(cont, root):
         """Reduce the install footprint of ubuntu as much as possible."""
         required_packages = {
             "precise": set([
@@ -502,13 +533,23 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
         os.environ["DEBIAN_FRONTEND"] = "noninteractive"
 
         pkgs = set(cont.execute(["dpkg-query",
+                                 "--admindir={}".format(os.path.join(root,
+                                                                     "var",
+                                                                     "lib",
+                                                                     "dpkg")),
                                  "-Wf",
                                  "${Package}\n"])[1].split("\n"))
         release = details["release"]
         remove = [l for l in list(pkgs ^ required_packages[release]) if len(l)]
 
+        if root != "/":
+            _clear_postrm_scripts_in_root(root)
+
         if len(remove):
+            cont.execute_success(["/bin/echo",
+                                  "Hello, world"])
             cont.execute_success(["dpkg",
+                                  "--root={}".format(root),
                                   "--purge",
                                   "--force-all"] + remove,
                                  minimal_bind=True)
@@ -532,6 +573,8 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
                                 details["arch"],
                                 details["pkgsys"])
 
+    minimize_actions = defaultdict(lambda: lambda c, p: None)
+
     try:
         os.stat(path_to_distro_folder)
         use_existing_msg = ("""\N{check mark} Using existing folder for """
@@ -539,6 +582,7 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
                             """{distro} {release} {arch}\n""")
         printer.unicode_safe(colored.green(use_existing_msg.format(**details),
                                            bold=True))
+        return (linux_cont, minimize_actions)
     except OSError:
         # Download the distribution tarball in the distro dir
         _download_distro(details, path_to_distro_folder)
@@ -547,9 +591,8 @@ def _fetch_distribution(container_root,  # pylint:disable=R0913
         # was just initially downloaded
         minimize_actions = defaultdict(lambda: lambda c: None,
                                        Ubuntu=_minimize_ubuntu)
-        minimize_actions[details["distro"]](linux_cont)
 
-    return linux_cont
+        return (linux_cont, minimize_actions)
 
 
 def container_for_directory(container_dir, distro_config):
@@ -585,9 +628,10 @@ def create(container_dir, distro_config):
                                              distro_config["arch"])
 
     # Now fetch the distribution tarball itself, if we specified one
-    cont = _fetch_distribution(container_dir,
-                               proot_distro,
-                               distro_config)
+    cont, minimize_actions = fetch_distribution(container_dir,
+                                                proot_distro,
+                                                distro_config)
+    minimize_actions[distro_config["distro"]](cont, "/")
 
     return cont
 
@@ -652,6 +696,12 @@ def match(info, arguments):
 def enumerate_all(info):
     """Enumerate all valid configurations for this DistroInfo."""
     if platform.system() != "Linux":
+        return
+
+    # proot based distributions are completely broken on
+    # Travis-CI (just exits with signal 11 immediately after
+    # execution) so don't even both running them here.
+    if os.environ.get("CI"):
         return
 
     for arch in _valid_archs(info.kwargs["arch"]):  # suppress(PYC90)

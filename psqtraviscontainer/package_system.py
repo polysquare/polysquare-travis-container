@@ -17,6 +17,8 @@ import platform
 
 import shutil
 
+import stat
+
 import subprocess
 
 import sys
@@ -62,7 +64,6 @@ def _run_task(executor, description, argv, env=None, detail=None):
      stderr_data) = executor.execute(argv,
                                      output_modifier=wrapper,
                                      live_output=True,
-                                     requires_full_access=True,
                                      env=env)
     sys.stderr.write(stderr_data)
 
@@ -249,15 +250,36 @@ class DpkgLocal(PackageSystem):
             "    };",
             "};",
             "debug {",
-            "    nolocking true;"
-            "};"
+            "    nolocking true;",
+            "};",
             "Acquire::Queue-Mode \"host\";",
             "Dir \"" + root + "\";",
             "Dir::Cache \"" + root + "/var/cache/apt\";",
-            "Dir::State \"" + root + "/var/lib/apt\";"
+            "Dir::State \"" + root + "/var/lib/apt\";",
+            "Dir::State::status \"" + root + "/var/lib/dpkg/status\";",
+            "Dir::Bin::Solvers \"" + root + "/usr/lib/apt/solvers\";",
+            "Dir::Bin::Planners \"" + root + "/usr/lib/apt/planners\";",
+            "Dir::Bin::Solvers \"" + root + "/usr/lib/apt/solvers\";",
+            "Dir::Bin::Methods \"" + root + "/usr/lib/apt/methods\";",
+            "Dir::Bin::Dpkg \"" + root + "/usr/bin/dpkg.w\";",
+            "Dir::Etc \"" + root + "/etc/apt\";",
+            "Dir::Log \"" + root + "/var/log/apt\";"
         ])
-        with open(os.path.join(root, "etc", "apt.conf"), "w") as config_file:
+        apt_config_path = os.path.join(root, "etc", "apt", "apt.conf")
+        with open(apt_config_path, "w") as config_file:
             config_file.write(config_file_contents)
+
+        dpkg_script_contents = "\n".join([
+            "#!/bin/bash",
+            root + "/usr/bin/dpkg --root='" + root + "' \\",
+            "--admindir=" + root + "/var/lib/dpkg \\",
+            "--log=" + root + "/var/log/dkpkg.log \\",
+            "--force-not-root --force-bad-path $@"
+        ])
+        dpkg_bin_path = os.path.join(root, "usr", "bin", "dpkg.w")
+        with open(dpkg_bin_path, "w") as dpkg_bin:
+            dpkg_bin.write(dpkg_script_contents)
+        os.chmod(dpkg_bin_path, os.stat(dpkg_bin_path).st_mode | stat.S_IXUSR)
 
     def add_repositories(self, repos):
         """Add repository to the central packaging system."""
@@ -298,7 +320,7 @@ class DpkgLocal(PackageSystem):
 
         root = self._executor.root_filesystem_directory()
         environment = {
-            "APT_CONFIG": os.path.join(root, "etc", "apt.conf")
+            "APT_CONFIG": os.path.join(root, "etc", "apt", "apt.conf")
         }
         _run_task(self._executor,
                   """Update repositories""",

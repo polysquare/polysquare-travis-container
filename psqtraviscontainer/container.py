@@ -229,5 +229,7 @@ class AbstractContainer(six.with_metaclass(abc.ABCMeta, object)):
                 sys.stderr.write(stdout_data)
 
             sys.stderr.write(stderr_data)
-            raise RuntimeError("""{0} failed with {1}""".format(" ".join(argv),
-                                                                returncode))
+            raise RuntimeError("""{0} failed with {1} {2} {3}""".format(" ".join(argv),
+                                                                returncode,
+                                                                stdout_data,
+                                                                stderr_data))
