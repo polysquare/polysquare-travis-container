@@ -35,7 +35,7 @@ before_deploy:
 env:
   global:
   - JOBSTAMPS_DISABLED=1
-  - secure: E+n+AODvvk2YvS52VHURqweisE8r1JKh1qGZ1YajC6KpfEe3ARKWaiG90j6pDs0OXkGhZZYQbu233YZWTjOjyz81L9eU931hJ3WYrvE6JZSiTA7Rrj/ZlFwfFRkHZ/BnenhX2gFWqQQXj9PT++a8uiinKz50ui1uDlrqEcvsdNk=
+  - secure: eQOVCF4WcmpWJon1rcQFXGJ9M43xKJBctEAEepOXIbTWBYN6E9eveD9wSKPU8Zw5ZY8jt1pmTLIspFJBw0BcnLPmApB6v42X8mewKcM1B1bNnsjYOFO57pqfFNbvs9p3JZzyncBcSPe8y1HVn1Gz2fN5R/piJrUqLrMd+97WgRM=
 deploy:
   provider: pypi
   user:
