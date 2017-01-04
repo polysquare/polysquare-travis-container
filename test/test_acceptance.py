@@ -481,7 +481,7 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
                 keys = ("distro", "release", "local")
                 kwargs.update({k: v for k, v in config.items() if k in keys})
 
-                print("Attempting to create container for " + test_name)
+                print("Attempting to create container for " + test_name + " " + repr(kwargs))
                 try:
                     cls.create_container(repos=command_config.repos_path,
                                          packages=command_config.packages_path,
