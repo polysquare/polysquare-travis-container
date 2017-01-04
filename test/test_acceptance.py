@@ -478,7 +478,7 @@ def _create_distro_test(test_name,  # pylint:disable=R0913
         def setUpClass(cls):  # suppress(N802)
             """Create a container for all uses of this TemplateDistroTest."""
             with InstallationConfig(packages, repos) as command_config:
-                keys = ("distro", "release")
+                keys = ("distro", "release", "local")
                 kwargs.update({k: v for k, v in config.items() if k in keys})
 
                 cls.create_container(repos=command_config.repos_path,
