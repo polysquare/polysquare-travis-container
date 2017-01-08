@@ -459,6 +459,14 @@ class Brew(PackageSystem):
         from six.moves import shlex_quote  # suppress(import-error)
         from six.moves.urllib.parse import urlparse  # suppress(import-error)
 
+        # Drop directories which cause problems for brew taps
+        hb_docs = os.path.join(self._executor.root_filesystem_directory(),
+                               "share",
+                               "doc",
+                               "homebrew")
+        if os.path.exists(hb_docs):
+            shutil.rmtree(hb_docs)
+
         # Separate out into packages that need to be downloaded with
         # brew and those that can be downloaded directly
         tar_packages = [p for p in package_names if urlparse(p).scheme]
