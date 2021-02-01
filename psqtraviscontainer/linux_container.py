@@ -533,25 +533,34 @@ def fetch_distribution(container_root,  # pylint:disable=R0913
         os.environ["SUDO_FORCE_REMOVE"] = "yes"
         os.environ["DEBIAN_FRONTEND"] = "noninteractive"
 
-        pkgs = set(cont.execute(["dpkg-query",
-                                 "--admindir={}".format(os.path.join(root,
-                                                                     "var",
-                                                                     "lib",
-                                                                     "dpkg")),
-                                 "-Wf",
-                                 "${Package}\n"])[1].split("\n"))
-        release = details["release"]
-        remove = [l for l in list(pkgs ^ required_packages[release]) if len(l)]
+        if release in required_packages:
+            pkgs = set(
+                cont.execute(["dpkg-query",
+                              "--admindir={}".format(os.path.join(root,
+                                                                  "var",
+                                                                  "lib",
+                                                                  "dpkg")),
+                               "-Wf",
+                              "${Package}\n"])[1].split("\n")
+            )
+            release = details["release"]
+            remove = [
+                l for l in list(pkgs ^ required_packages[release]) if len(l)
+            ]
 
-        if root != "/":
-            _clear_postrm_scripts_in_root(root)
+            if root != "/":
+                _clear_postrm_scripts_in_root(root)
 
-        if len(remove):
-            cont.execute_success(["dpkg",
-                                  "--root={}".format(root),
-                                  "--purge",
-                                  "--force-all"] + remove,
-                                 minimal_bind=True)
+            if len(remove):
+                cont.execute_success(
+                    [
+                        "dpkg",
+                        "--root={}".format(root),
+                        "--purge",
+                        "--force-all"
+                    ] + remove,
+                    minimal_bind=True
+                )
 
         with open(os.path.join(get_dir_for_distro(container_root,
                                                   details),
