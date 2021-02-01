@@ -755,6 +755,13 @@ DISTRIBUTIONS = [  # suppress(unused-variable)
                    "ubuntu-core-14.10-core-{arch}.tar.gz"),
               arch=["i386", "amd64", "armhf", "powerpc"],
               archfetch=architecture.Alias.debian),
+    LinuxInfo("Ubuntu",
+              release="focal",
+              url=("http://cdimage.ubuntu.com/ubuntu-base/"
+                   "releases/20.04/release/"
+                   "ubuntu-base-20.04-base-{arch}.tar.gz"),
+              arch=["amd64"],
+              archfetch=architecture.Alias.debian),
     LinuxInfo("Debian",
               release="wheezy",
               url=("http://download.openvz.org/"
