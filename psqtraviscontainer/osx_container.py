@@ -28,7 +28,7 @@ import tempdir
 
 DistroInfo = distro.DistroInfo
 
-_HOMEBREW_URL = "https://github.com/Homebrew/homebrew/tarball/master"
+_HOMEBREW_URL = "https://github.com/Homebrew/brew/archive/master.tar.gz"
 
 
 class OSXContainer(container.AbstractContainer):
