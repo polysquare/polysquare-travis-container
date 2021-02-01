@@ -79,11 +79,10 @@ class OSXContainer(container.AbstractContainer):
 
 def _extract_archive(archive_file, container_folder):
     """Extract distribution archive into container_folder."""
+    msg = ("""-> Extracting {0}\n""").format(archive_file.path())
+    printer.unicode_safe(colored.magenta(msg, bold=True))
     with tarfile.open(name=archive_file.path()) as archive:
-        msg = ("""-> Extracting """
-               """{0}\n""").format(archive_file.path())
         extract_members = archive.getmembers()
-        printer.unicode_safe(colored.magenta(msg, bold=True))
         archive.extractall(members=extract_members, path=container_folder)
 
 
