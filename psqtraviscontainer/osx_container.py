@@ -59,7 +59,7 @@ class OSXContainer(container.AbstractContainer):
         popen_args = self.__class__.PopenArguments
         popen_env = {
             "PATH": os.path.join(self._prefix, "bin"),
-            "LD_LIBRARY_PATH": os.path.join(self._prefix, "lib"),
+            "DYLD_LIBRARY_PATH": os.path.join(self._prefix, "lib"),
             "PKG_CONFIG_PATH": os.path.join(self._prefix, "lib", "pkgconfig")
         }
         return popen_args(prepend=popen_env, argv=argv)
