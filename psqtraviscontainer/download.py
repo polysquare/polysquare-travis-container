@@ -22,10 +22,10 @@ def download_file(url, filename=None):
     sys.stdout.write(str(colored.blue(msg, bold=True)))
     sys.stdout.write("\n")
     request = requests.get(url, stream=True)
-    length = int(request.headers.get("content-length"))
+    length = int(request.headers.get("content-length", 0)) or None
     with open(filename or os.path.basename(url), "wb") as downloaded_file:
         chunk_size = 1024
-        total = length / chunk_size + 1
+        total = (length / chunk_size + 1) if length else 3000
         for chunk in progress.bar(request.iter_content(chunk_size=chunk_size),
                                   expected_size=total,
                                   label=basename):
