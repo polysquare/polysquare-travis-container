@@ -289,5 +289,12 @@ DISTRIBUTIONS = [  # suppress(unused-variable)
                         "releases/utopic/release/"
                         "ubuntu-core-14.10-core-{arch}.tar.gz"),
                    arch=["i386", "amd64", "armhf", "powerpc"],
+                   archfetch=architecture.Alias.debian),
+    LinuxLocalInfo("Ubuntu",
+                   release="focal",
+                   url=("http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release/"
+                        "releases/utopic/release/"
+                        "ubuntu-base-20.04-base-{arch}.tar.gz"),
+                   arch=["amd64"],
                    archfetch=architecture.Alias.debian)
 ]
